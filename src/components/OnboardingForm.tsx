@@ -219,7 +219,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
         <div className="md:w-1/3 bg-slate-900 p-10 text-white flex flex-col">
            <div className="mb-10">
              <div className="flex items-center gap-2 mb-4">
-                <span className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center font-black">TB</span>
+                <img src="/logo_tourbots.svg" alt="TourBots Logo" className="w-10 h-10 object-contain" />
                 <span className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Join TourBots</span>
              </div>
              <h2 className="text-3xl font-black leading-tight">Create your {role} account</h2>

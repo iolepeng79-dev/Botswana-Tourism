@@ -9,6 +9,7 @@ import AdminDashboard from './components/AdminDashboard';
 import TouristDashboard from './components/TouristDashboard';
 import OnboardingForm from './components/OnboardingForm';
 import AuthView from './components/AuthView';
+import NewsPopup from './components/NewsPopup';
 import { UserRole, Profile } from './types';
 import { User, Shield, Briefcase, ChevronUp, LogOut } from 'lucide-react';
 import { cn } from './lib/utils';
@@ -50,6 +51,9 @@ export default function App() {
           onAuthRequired={() => setIsAuthOpen(true)} 
         />
       )}
+
+      {/* Global News Popups */}
+      <NewsPopup />
 
       {/* Auth Overlay */}
       {isAuthOpen && (

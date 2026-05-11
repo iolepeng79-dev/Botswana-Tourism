@@ -202,6 +202,42 @@ export default function BusinessProfileView({
                   </div>
                 </div>
 
+                <div className="space-y-6 pt-6 border-t border-slate-50">
+                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Promotions and Announcements</h4>
+                  <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100 italic text-slate-700 text-sm font-medium">
+                    "Weekly safari discounts available for residents. Book your spot today!"
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-2xl">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                      <ImageIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Attachment</p>
+                      <p className="text-xs font-bold text-slate-900">seasonal_promo_flyer.pdf</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6 pt-6 border-t border-slate-50">
+                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Experience Features</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {['Guided Tours', 'Night Drives', 'Photography Workshops', 'Luxury Dining'].map(feature => (
+                      <span key={feature} className="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-black uppercase tracking-tighter rounded-xl">
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-2xl">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Attachment</p>
+                      <p className="text-xs font-bold text-slate-900">experience_highlights.mp4</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6">
                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                       <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Operating in</p>

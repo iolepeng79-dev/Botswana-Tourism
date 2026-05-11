@@ -63,12 +63,10 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
         <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
           {/* Header */}
           <div className="bg-slate-900 p-10 text-white flex flex-col items-center">
-             <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-900/40">
-                <Shield className="w-8 h-8" />
-             </div>
-             <h2 className="text-3xl font-black tracking-tight">TourBots</h2>
-             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">
-               {view === 'login' ? 'Welcome Back' : 'Security Check'}
+             <img src="/logo_tourbots.svg" alt="TourBots Logo" className="w-16 h-16 object-contain mb-6" />
+             <h2 className="text-3xl font-black tracking-tight">TourBots Botswana</h2>
+             <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-3 text-center leading-relaxed">
+               {view === 'login' ? 'Sign in to access premium features' : 'Create your account for free'}
              </p>
           </div>
 

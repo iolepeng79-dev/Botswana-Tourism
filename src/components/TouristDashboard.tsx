@@ -233,6 +233,25 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
       setLoading(false);
       return;
     }
+
+    try {
+      setLoading(true);
+      const [bizRes, reviewsRes, promosRes, bookingsRes] = await Promise.all([
+        supabase.from('businesses').select('*').eq('status', 'Approved'),
+        supabase.from('reviews').select('*'),
+        supabase.from('promotions').select('*').eq('active', true),
+        profile ? supabase.from('bookings').select('*').eq('customer_id', profile.id) : Promise.resolve({ data: [] })
+      ]);
+
+      setBusinesses(bizRes.data || []);
+      setAllReviews(reviewsRes.data || []);
+      setPromotions(promosRes.data || []);
+      setBookings(bookingsRes.data || []);
+    } catch (error) {
+      console.error('Error fetching tourist data:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleExternalSearch = async () => {
@@ -270,6 +289,10 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
 
   const handleRestrictedAction = (tab?: any) => {
     if (!profile) {
+      if (tab === 'explore') {
+        setActiveTab('explore');
+        return;
+      }
       onAuthRequired();
       return;
     }
@@ -294,9 +317,7 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-100">
-                <Navigation className="w-6 h-6 fill-current" />
-              </div>
+              <img src="/logo_tourbots.svg" alt="TourBots Logo" className="w-10 h-10 object-contain" />
               <span className="text-xl font-black tracking-tight scale-y-95">TourBots</span>
             </div>
             
@@ -319,7 +340,7 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
                 >
                   <tab.icon className="w-3.5 h-3.5" />
                   {tab.label}
-                  {tab.id === 'explore' && !profile && <Lock className="w-2.5 h-2.5 opacity-40" />}
+                  {tab.id !== 'explore' && !profile && <Lock className="w-2.5 h-2.5 opacity-40" />}
                 </button>
               ))}
             </div>
@@ -644,9 +665,7 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-6 left-6 right-6 md:left-1/2 md:right-auto md:-translate-x-1/2 z-50 bg-slate-900 text-white rounded-[2rem] p-6 shadow-2xl flex flex-col md:flex-row items-center gap-6 border border-white/10 backdrop-blur-xl"
           >
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
-               <Navigation className="w-6 h-6" />
-            </div>
+            <img src="/logo_tourbots.svg" alt="TourBots Logo" className="w-12 h-12 object-contain shrink-0" />
             <div className="text-center md:text-left">
               <h4 className="font-black text-sm uppercase tracking-widest">Install TourBots</h4>
               <p className="text-xs text-white/50 font-medium mt-1">Get the best experience by adding TourBots to your home screen.</p>
@@ -674,18 +693,31 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-20">
           <div className="space-y-8">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white">
-                <Navigation className="w-6 h-6 fill-current" />
-              </div>
+              <img src="/logo_tourbots.svg" alt="TourBots Logo" className="w-10 h-10 object-contain" />
               <span className="text-2xl font-black tracking-tight leading-none pt-1">TourBots Botswana</span>
             </div>
             <p className="text-slate-500 font-medium leading-relaxed max-w-md">
               Connecting travelers with the authentic heart of Botswana. Discover premium lodges, safaris, and services through our curated registry.
             </p>
             <div className="flex items-center gap-6">
-               <a href="#" className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Explorer</a>
-               <a href="#" className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Join as Business</a>
-               <a href="#" className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors">Contact Support</a>
+               <button 
+                 onClick={() => setActiveTab('explore')}
+                 className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+               >
+                 Explorer
+               </button>
+               <button 
+                 onClick={() => onAuthRequired()}
+                 className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+               >
+                 Join as Business
+               </button>
+               <button 
+                 onClick={() => alert('Support portal is coming soon!')}
+                 className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+               >
+                 Contact Support
+               </button>
             </div>
             <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.25em]">© 2026 TourBots Botswana. All Rights Reserved.</p>
           </div>

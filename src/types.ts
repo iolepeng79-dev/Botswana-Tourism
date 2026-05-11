@@ -228,6 +228,7 @@ export const TIER_LIMITS = {
 export interface DashboardFilters {
   year: string;
   month: string;
+  day: string;
   location: string;
   status: string;
   category: string;

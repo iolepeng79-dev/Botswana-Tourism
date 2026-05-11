@@ -138,6 +138,25 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       setLoading(false);
       return;
     }
+
+    try {
+      setLoading(true);
+      const [bizRes, bookingsRes, upgradeRes, logsRes] = await Promise.all([
+        supabase.from('businesses').select('*'),
+        supabase.from('bookings').select('*'),
+        supabase.from('package_upgrade_requests').select('*'),
+        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50)
+      ]);
+
+      setBusinesses(bizRes.data || []);
+      setBookings(bookingsRes.data || []);
+      setUpgradeRequests(upgradeRes.data || []);
+      setAuditLogs(logsRes.data || []);
+    } catch (error) {
+      console.error('Error fetching admin data:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const pendingBusinesses = businesses.filter(b => b.status === 'Pending');
@@ -170,9 +189,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       <header className="bg-slate-900 text-white sticky top-0 z-50 shadow-2xl">
         <div className="max-w-[1600px] mx-auto px-10 h-24 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="w-12 h-12 bg-indigo-600 rounded-[1.25rem] flex items-center justify-center shadow-lg shadow-indigo-900/40">
-              <Shield className="w-7 h-7" />
-            </div>
+            <img src="/logo_tourbots.svg" alt="TourBots Logo" className="w-12 h-12 object-contain" />
             <div>
               <h1 className="text-2xl font-black tracking-tight">Admin Terminal</h1>
               <p className="text-[10px] font-black uppercase text-indigo-400 tracking-[0.3em] mt-1">Full Service Access</p>
