@@ -4,7 +4,6 @@ import { cn } from '../lib/utils';
 import { BUSINESS_CATEGORIES, COUNTRIES } from '../constants';
 import { UserRole } from '../types';
 import { supabase } from '../lib/supabase';
-import { seedLocations } from '../lib/locationData';
 import { DEFAULT_PACKAGES, DEFAULT_PAYMENT_METHODS } from '../lib/onboardingDefaults';
 
 interface OnboardingFormProps {
@@ -52,7 +51,6 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   const [packages, setPackages] = useState<any[]>(DEFAULT_PACKAGES);
   const [paymentMethods, setPaymentMethods] = useState<any[]>(DEFAULT_PAYMENT_METHODS);
   const [loading, setLoading] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   
   // Dynamic loading states for locations
   const [loadingDistricts, setLoadingDistricts] = useState(false);
@@ -90,17 +88,6 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   useEffect(() => {
     fetchInitialData();
   }, []);
-
-  const handleSeed = async () => {
-    setSeeding(true);
-    const result = await seedLocations();
-    if (result.success) {
-      await fetchInitialData();
-    } else {
-      alert(`Seeding failed: ${result.error}`);
-    }
-    setSeeding(false);
-  };
 
   // Fetch dependent settlements (Town/Village)
   useEffect(() => {
@@ -455,42 +442,6 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                 </div>
                 
                 <div className="space-y-6">
-                  {districts.length === 0 && !seeding && (
-                    <div className="p-8 bg-emerald-50 rounded-[2.5rem] border border-emerald-100/50 flex flex-col gap-5 text-center mb-4">
-                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                        <MapPin className="w-7 h-7 text-emerald-600" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="text-base font-black text-emerald-900">System Initialization</h4>
-                        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest leading-relaxed max-w-[200px] mx-auto">
-                          Click below to populate the Botswana hierarchical location database.
-                        </p>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={handleSeed}
-                        className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
-                      >
-                        Seed Location Database
-                      </button>
-                    </div>
-                  )}
-
-                  {seeding && (
-                    <div className="p-12 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex flex-col items-center gap-6 text-center mb-4">
-                      <div className="relative">
-                        <div className="w-20 h-20 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                        <Activity className="w-8 h-8 text-emerald-500 absolute inset-0 m-auto animate-pulse" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="text-base font-black text-slate-800">Processing Geodata</h4>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">
-                          Structuring 4,000+ Botswana locations...
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                     <div className="space-y-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
