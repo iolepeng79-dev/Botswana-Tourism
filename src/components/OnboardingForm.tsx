@@ -6,6 +6,8 @@ import { UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_PACKAGES, DEFAULT_PAYMENT_METHODS } from '../lib/onboardingDefaults';
 
+import { seedLocations } from '../lib/locationData';
+
 interface OnboardingFormProps {
   onComplete: (data: any) => void;
   onCancel: () => void;
@@ -65,12 +67,25 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     
     setLoadingDistricts(true);
     // Districts
-    const { data: distData } = await supabase
+    let { data: distData } = await supabase
       .from('locations')
       .select('*')
       .eq('type', 'district')
       .order('name');
-    if (distData) setDistricts(distData);
+
+    // Auto-seed if empty (as per "Populate ALL dropdowns" requirement)
+    if (!distData || distData.length === 0) {
+      console.log("Seeding initial locations...");
+      await seedLocations();
+      const { data: refreshedDistData } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('type', 'district')
+        .order('name');
+      distData = refreshedDistData;
+    }
+
+    if (distData) setDistricts(distData || []);
     setLoadingDistricts(false);
 
     // Packages
@@ -167,7 +182,13 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
       }
       if (step === 2) {
         if (formData.verified_location) {
-          return formData.district && formData.settlement && formData.region && formData.location;
+          // Relax validation: only Level 1 and 2 are strictly required if 3 or 4 have no data
+          const isL1Valid = !!formData.district_id;
+          const isL2Valid = !!formData.settlement_id;
+          const isL3Valid = regions.length === 0 || !!formData.region_id;
+          const isL4Valid = locations.length === 0 || !!formData.location_id;
+          
+          return isL1Valid && isL2Valid && isL3Valid && isL4Valid;
         } else {
           return formData.manual_address && formData.latitude && formData.longitude;
         }
@@ -514,7 +535,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                     <div className="space-y-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingDistricts ? 'Loading Districts...' : 'Select District'}
+                          {loadingDistricts ? 'Loading Districts...' : '1. Select District'}
                         </label>
                         <div className="relative">
                           <select 
@@ -551,7 +572,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingSettlements ? 'Loading...' : 'Select Town / Village'}
+                          {loadingSettlements ? 'Loading...' : '2. Select City / Town / Village'}
                         </label>
                         <div className="relative">
                           <select 
@@ -573,7 +594,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                               });
                             }}
                           >
-                            <option value="">Choose Town / Village</option>
+                            <option value="">Choose City / Town / Village</option>
                             {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
                           {loadingSettlements ? (
@@ -586,7 +607,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingRegions ? 'Loading...' : 'Select Area / Ward / Kgotla / Suburb'}
+                          {loadingRegions ? 'Loading...' : '3. Select Area / Ward / Kgotla'}
                         </label>
                         <div className="relative">
                           <select 
@@ -606,7 +627,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                               });
                             }}
                           >
-                            <option value="">Choose Area / Ward / Kgotla / Suburb</option>
+                            <option value="">Choose Area / Ward / Kgotla</option>
                             {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                           </select>
                           {loadingRegions ? (
@@ -619,7 +640,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingLocations ? 'Loading...' : 'Select Settlement / Safari Zone / Specific Location'}
+                          {loadingLocations ? 'Loading...' : '4. Select Special Place / Settlement'}
                         </label>
                         <div className="relative">
                           <select 
@@ -637,7 +658,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                               });
                             }}
                           >
-                            <option value="">Choose Settlement / Safari Zone / Location</option>
+                            <option value="">Choose Special Place / Settlement / Specific Location</option>
                             {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                           </select>
                           {loadingLocations ? (
