@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Briefcase, MapPin, Shield, Camera, Upload, CheckCircle, ArrowRight, ArrowLeft, Lock, Navigation, X, Globe, Zap, Image as ImageIcon, Video, Star, BarChart3, Info, ChevronDown, Activity } from 'lucide-react';
+import { User, Briefcase, MapPin, Shield, Camera, Upload, CheckCircle, ArrowRight, ArrowLeft, Lock, Navigation, X, Globe, Zap, Image as ImageIcon, Video, Star, BarChart3, Info, ChevronDown, Activity, Search, MapPinned } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { BUSINESS_CATEGORIES, COUNTRIES } from '../constants';
 import { UserRole } from '../types';
@@ -60,6 +60,10 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   const [loadingRegions, setLoadingRegions] = useState(false);
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // New Location Picker State
+  const [activeLevel, setActiveLevel] = useState<'district' | 'settlement' | 'region' | 'location' | null>(null);
+  const [locationSearch, setLocationSearch] = useState('');
 
   // Fetch initial data
   const fetchInitialData = async () => {
@@ -551,150 +555,253 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
             )}
 
             {role === 'Business' && step === 2 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 overflow-y-auto max-h-[60vh] pr-2">
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 overflow-y-auto max-h-[65vh] pr-2 scrollbar-hide">
                 <div className="space-y-2">
                   <h3 className="text-4xl font-black text-slate-900 tracking-tight">Location Details</h3>
-                  <p className="text-slate-500 font-medium">Help travelers find you by pinpointing your HQ.</p>
+                  <p className="text-slate-500 font-medium">Follow the steps to pinpoint your business HQ.</p>
                 </div>
                 
                 <div className="space-y-6">
-                    <div className="space-y-5">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          District
-                        </label>
-                        <div className="relative">
-                          <select 
-                            required
-                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer"
-                            value={formData.district_id}
-                            onChange={e => {
-                              const id = e.target.value;
-                              const name = districts.find(d => d.id === id)?.name || '';
-                              setFormData({
-                                ...formData, 
-                                district: name, 
-                                district_id: id,
-                                settlement: '', 
-                                settlement_id: '',
-                                region: '', 
-                                region_id: '',
-                                location: '', 
-                                location_id: '',
-                                verified_location: true
-                              });
-                            }}
-                          >
-                            <option value="">Choose a District</option>
-                            {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                          </select>
-                          {loadingDistricts ? (
-                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                          )}
-                        </div>
-                      </div>
+                  {/* Cascading Breadcrumbs / Progress */}
+                  <div className="flex flex-wrap items-center gap-2 p-4 bg-slate-50 rounded-[2rem] border border-slate-100">
+                    <button 
+                      type="button"
+                      onClick={() => setActiveLevel('district')}
+                      className={cn(
+                        "text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all flex items-center gap-2",
+                        formData.district ? "bg-emerald-100 text-emerald-800" : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      District{formData.district && `: ${formData.district}`}
+                      {formData.district && <ArrowRight className="w-3 h-3" />}
+                    </button>
+                    {formData.district && (
+                      <button 
+                        type="button"
+                        onClick={() => setActiveLevel('settlement')}
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all flex items-center gap-2",
+                          formData.settlement ? "bg-emerald-100 text-emerald-800" : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        Settlement{formData.settlement && `: ${formData.settlement}`}
+                        {formData.settlement && <ArrowRight className="w-3 h-3" />}
+                      </button>
+                    )}
+                    {formData.settlement && (
+                      <button 
+                        type="button"
+                        onClick={() => setActiveLevel('region')}
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all flex items-center gap-2",
+                          formData.region ? "bg-emerald-100 text-emerald-800" : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        Area{formData.region && `: ${formData.region}`}
+                        {formData.region && <ArrowRight className="w-3 h-3" />}
+                      </button>
+                    )}
+                    {formData.region && (
+                      <button 
+                        type="button"
+                        onClick={() => setActiveLevel('location')}
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all flex items-center gap-2",
+                          formData.location ? "bg-emerald-100 text-emerald-800" : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        Final Location{formData.location && `: ${formData.location}`}
+                      </button>
+                    )}
+                  </div>
 
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          City / Town / Village
-                        </label>
-                        <div className="relative">
-                          <select 
-                            required={formData.verified_location}
-                            disabled={!formData.district_id || loadingSettlements}
-                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
-                            value={formData.settlement_id}
-                            onChange={e => {
-                              const id = e.target.value;
-                              const name = settlements.find(s => s.id === id)?.name || '';
-                              setFormData({
-                                ...formData, 
-                                settlement: name, 
-                                settlement_id: id,
-                                region: '', 
-                                region_id: '',
-                                location: '', 
-                                location_id: ''
-                              });
-                            }}
-                          >
-                            <option value="">Choose City / Town / Village</option>
-                            {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
-                          {loadingSettlements ? (
-                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {/* Guided Panels */}
+                  <div className="space-y-4">
+                    {!activeLevel && (
+                       <div className="grid grid-cols-1 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setActiveLevel('district')}
+                          className={cn(
+                            "group p-6 rounded-[2rem] border-2 text-left transition-all flex items-center justify-between",
+                            formData.district_id ? "border-emerald-600 bg-emerald-50/30" : "border-slate-100 hover:border-slate-200"
                           )}
-                        </div>
-                      </div>
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all", formData.district_id ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400")}>
+                               <MapPinned className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-slate-400">Step 1</p>
+                              <h4 className="font-black text-slate-900">{formData.district || 'Select District'}</h4>
+                            </div>
+                          </div>
+                          <ChevronDown className={cn("w-5 h-5 text-slate-300 transition-transform", activeLevel === 'district' && "rotate-180")} />
+                        </button>
 
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          Area / Ward / Kgotla
-                        </label>
-                        <div className="relative">
-                          <select 
-                            required={formData.verified_location && settlements.length > 0}
-                            disabled={!formData.settlement_id || loadingRegions}
-                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
-                            value={formData.region_id}
-                            onChange={e => {
-                              const id = e.target.value;
-                              const name = regions.find(r => r.id === id)?.name || '';
-                              setFormData({
-                                ...formData, 
-                                region: name, 
-                                region_id: id,
-                                location: '', 
-                                location_id: ''
-                              });
-                            }}
-                          >
-                            <option value="">Choose Area / Ward / Kgotla</option>
-                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                          </select>
-                          {loadingRegions ? (
-                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <button
+                          type="button"
+                          disabled={!formData.district_id}
+                          onClick={() => setActiveLevel('settlement')}
+                          className={cn(
+                            "group p-6 rounded-[2rem] border-2 text-left transition-all flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed",
+                            formData.settlement_id ? "border-emerald-600 bg-emerald-50/30" : "border-slate-100 hover:border-slate-200"
                           )}
-                        </div>
-                      </div>
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all", formData.settlement_id ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400")}>
+                               <Globe className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-slate-400">Step 2</p>
+                              <h4 className="font-black text-slate-900">{formData.settlement || 'City / Town / Village'}</h4>
+                            </div>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-slate-300" />
+                        </button>
 
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          Special Place / Settlement
-                        </label>
-                        <div className="relative">
-                          <select 
-                            required={formData.verified_location && regions.length > 0}
-                            disabled={!formData.region_id || loadingLocations}
-                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
-                            value={formData.location_id}
-                            onChange={e => {
-                              const id = e.target.value;
-                              const name = locations.find(l => l.id === id)?.name || '';
-                              setFormData({
-                                ...formData, 
-                                location: name,
-                                location_id: id
-                              });
-                            }}
-                          >
-                            <option value="">Choose Special Place / Settlement / Specific Location</option>
-                            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                          </select>
-                          {loadingLocations ? (
-                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <button
+                          type="button"
+                          disabled={!formData.settlement_id || (settlements.length > 0 && regions.length === 0 && loadingRegions)}
+                          onClick={() => setActiveLevel('region')}
+                          className={cn(
+                            "group p-6 rounded-[2rem] border-2 text-left transition-all flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed",
+                            formData.region_id ? "border-emerald-600 bg-emerald-50/30" : "border-slate-100 hover:border-slate-200"
                           )}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all", formData.region_id ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400")}>
+                               <Navigation className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-slate-400">Step 3</p>
+                              <h4 className="font-black text-slate-900">{formData.region || 'Area / Ward / Kgotla'}</h4>
+                            </div>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-slate-300" />
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={!formData.region_id || (regions.length > 0 && locations.length === 0 && loadingLocations)}
+                          onClick={() => setActiveLevel('location')}
+                          className={cn(
+                            "group p-6 rounded-[2rem] border-2 text-left transition-all flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed",
+                            formData.location_id ? "border-emerald-600 bg-emerald-50/30" : "border-slate-100 hover:border-slate-200"
+                          )}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all", formData.location_id ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400")}>
+                               <MapPin className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-slate-400">Step 4</p>
+                              <h4 className="font-black text-slate-900">{formData.location || 'Special Place / Settlement'}</h4>
+                            </div>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-slate-300" />
+                        </button>
+                       </div>
+                    )}
+
+                    {/* Active Selector Panel */}
+                    {activeLevel && (
+                      <div className="bg-slate-900 rounded-[2.5rem] p-6 text-white space-y-6 animate-in slide-in-from-bottom-4 duration-300 relative overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xl font-black tracking-tight uppercase">Select {activeLevel.replace('_', ' ')}</h4>
+                          <button 
+                            type="button"
+                            onClick={() => { setActiveLevel(null); setLocationSearch(''); }}
+                            className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="relative">
+                          <Search className="w-5 h-5 absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" />
+                          <input 
+                            autoFocus
+                            placeholder={`Search ${activeLevel}...`}
+                            className="w-full bg-white/10 border-none rounded-2xl p-5 pl-14 text-sm font-black focus:ring-2 focus:ring-emerald-600 transition-all placeholder:text-slate-600"
+                            value={locationSearch}
+                            onChange={e => setLocationSearch(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="max-h-64 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                          {(() => {
+                            const list = activeLevel === 'district' ? districts :
+                                         activeLevel === 'settlement' ? settlements :
+                                         activeLevel === 'region' ? regions : 
+                                         locations;
+                            
+                            const filtered = list.filter(item => 
+                              item.name.toLowerCase().includes(locationSearch.toLowerCase())
+                            );
+
+                            if (filtered.length === 0) {
+                              return (
+                                <div className="py-10 text-center opacity-40">
+                                  <p className="text-sm font-black uppercase tracking-widest">No matching results</p>
+                                </div>
+                              );
+                            }
+
+                            return filtered.map(item => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  if (activeLevel === 'district') {
+                                    setFormData({
+                                      ...formData, 
+                                      district: item.name, 
+                                      district_id: item.id,
+                                      settlement: '', settlement_id: '',
+                                      region: '', region_id: '',
+                                      location: '', location_id: '',
+                                      verified_location: true
+                                    });
+                                    setActiveLevel('settlement');
+                                  } else if (activeLevel === 'settlement') {
+                                    setFormData({
+                                      ...formData, 
+                                      settlement: item.name, 
+                                      settlement_id: item.id,
+                                      region: '', region_id: '',
+                                      location: '', location_id: ''
+                                    });
+                                    setActiveLevel('region');
+                                  } else if (activeLevel === 'region') {
+                                    setFormData({
+                                      ...formData, 
+                                      region: item.name, 
+                                      region_id: item.id,
+                                      location: '', location_id: ''
+                                    });
+                                    setActiveLevel('location');
+                                  } else {
+                                    setFormData({
+                                      ...formData, 
+                                      location: item.name,
+                                      location_id: item.id
+                                    });
+                                    setActiveLevel(null);
+                                  }
+                                  setLocationSearch('');
+                                }}
+                                className="w-full p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-emerald-600/50 hover:bg-emerald-600/10 text-left transition-all flex items-center justify-between group"
+                              >
+                                <span className="font-black text-sm tracking-tight group-hover:text-emerald-400">{item.name}</span>
+                                <ArrowRight className="w-4 h-4 text-emerald-600 opacity-0 transform -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                              </button>
+                            ));
+                          })()}
                         </div>
                       </div>
-                    </div>
+                    )}
+                  </div>
 
                   {/* Fallback Section */}
                   <div className="pt-4 border-t border-slate-100">
