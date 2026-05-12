@@ -6,7 +6,7 @@ import { UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_PACKAGES, DEFAULT_PAYMENT_METHODS } from '../lib/onboardingDefaults';
 
-import { seedLocations } from '../lib/locationData';
+import { BOTSWANA_LOCATIONS_HIERARCHY, LocationEntry } from '../lib/locationData';
 
 interface OnboardingFormProps {
   onComplete: (data: any) => void;
@@ -46,19 +46,19 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     verified_location: true
   });
 
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [settlements, setSettlements] = useState<any[]>([]);
-  const [regions, setRegions] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
+  const [districts] = useState<LocationEntry[]>(BOTSWANA_LOCATIONS_HIERARCHY);
+  const [settlements, setSettlements] = useState<LocationEntry[]>([]);
+  const [regions, setRegions] = useState<LocationEntry[]>([]);
+  const [locations, setLocations] = useState<LocationEntry[]>([]);
   const [packages, setPackages] = useState<any[]>(DEFAULT_PACKAGES);
   const [paymentMethods, setPaymentMethods] = useState<any[]>(DEFAULT_PAYMENT_METHODS);
   const [loading, setLoading] = useState(false);
   
   // Dynamic loading states for locations
-  const [loadingDistricts, setLoadingDistricts] = useState(false);
-  const [loadingSettlements, setLoadingSettlements] = useState(false);
-  const [loadingRegions, setLoadingRegions] = useState(false);
-  const [loadingLocations, setLoadingLocations] = useState(false);
+  const [loadingDistricts] = useState(false);
+  const [loadingSettlements] = useState(false);
+  const [loadingRegions] = useState(false);
+  const [loadingLocations] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   // New Location Picker State
@@ -68,29 +68,6 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   // Fetch initial data
   const fetchInitialData = async () => {
     if (!supabase) return;
-    
-    setLoadingDistricts(true);
-    // Districts
-    let { data: distData } = await supabase
-      .from('locations')
-      .select('*')
-      .eq('type', 'district')
-      .order('name');
-
-    // Auto-seed if empty (as per "Populate ALL dropdowns" requirement)
-    if (!distData || distData.length === 0) {
-      console.log("Seeding initial locations...");
-      await seedLocations();
-      const { data: refreshedDistData } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('type', 'district')
-        .order('name');
-      distData = refreshedDistData;
-    }
-
-    if (distData) setDistricts(distData || []);
-    setLoadingDistricts(false);
 
     // Packages
     const { data: pkgData } = await supabase
@@ -109,70 +86,40 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     fetchInitialData();
   }, []);
 
-  // Fetch dependent settlements (Town/Village)
+  // Update settlements when district changes
   useEffect(() => {
-    if (!supabase || !formData.district_id) {
+    if (!formData.district) {
       setSettlements([]);
       return;
     }
-    
-    async function fetchSettlements() {
-      setLoadingSettlements(true);
-      const { data } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('parent_id', formData.district_id)
-        .order('name');
-      if (data) setSettlements(data);
-      setLoadingSettlements(false);
-    }
-    fetchSettlements();
-  }, [formData.district_id]);
+    const district = districts.find(d => d.name === formData.district);
+    setSettlements(district?.children || []);
+  }, [formData.district]);
 
-  // Fetch dependent regions (Area/Region/Ward/Kgotla)
+  // Update regions when settlement changes
   useEffect(() => {
-    if (!supabase || !formData.settlement_id) {
+    if (!formData.settlement) {
       setRegions([]);
       return;
     }
-    
-    async function fetchRegions() {
-      setLoadingRegions(true);
-      const { data } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('parent_id', formData.settlement_id)
-        .order('name');
-      if (data) setRegions(data);
-      setLoadingRegions(false);
-    }
-    fetchRegions();
-  }, [formData.settlement_id]);
+    const settlement = settlements.find(s => s.name === formData.settlement);
+    setRegions(settlement?.children || []);
+  }, [formData.settlement]);
 
-  // Fetch dependent locations (Specific Location/Settlement)
+  // Update locations when region changes
   useEffect(() => {
-    if (!supabase || !formData.region_id) {
+    if (!formData.region) {
       setLocations([]);
       return;
     }
-    
-    async function fetchLocations() {
-      setLoadingLocations(true);
-      const { data } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('parent_id', formData.region_id)
-        .order('name');
-      if (data) setLocations(data);
-      setLoadingLocations(false);
-    }
-    fetchLocations();
-  }, [formData.region_id]);
+    const region = regions.find(r => r.name === formData.region);
+    setLocations(region?.children || []);
+  }, [formData.region]);
 
   // Validate location ID against fetched list to ensure synchronization
   useEffect(() => {
     if (formData.location_id && locations.length > 0) {
-      const isValid = locations.some(l => l.id === formData.location_id);
+      const isValid = locations.some(l => l.name === formData.location_id);
       if (!isValid && formData.verified_location) {
         setFormData((prev: any) => ({ ...prev, location: '', location_id: '' }));
       }
@@ -750,14 +697,14 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                             return filtered.map(item => (
                               <button
-                                key={item.id}
+                                key={item.name}
                                 type="button"
                                 onClick={() => {
                                   if (activeLevel === 'district') {
                                     setFormData({
                                       ...formData, 
                                       district: item.name, 
-                                      district_id: item.id,
+                                      district_id: item.name, // Using name as ID for local data
                                       settlement: '', settlement_id: '',
                                       region: '', region_id: '',
                                       location: '', location_id: '',
@@ -768,7 +715,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                                     setFormData({
                                       ...formData, 
                                       settlement: item.name, 
-                                      settlement_id: item.id,
+                                      settlement_id: item.name,
                                       region: '', region_id: '',
                                       location: '', location_id: ''
                                     });
@@ -777,7 +724,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                                     setFormData({
                                       ...formData, 
                                       region: item.name, 
-                                      region_id: item.id,
+                                      region_id: item.name,
                                       location: '', location_id: ''
                                     });
                                     setActiveLevel('location');
@@ -785,7 +732,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                                     setFormData({
                                       ...formData, 
                                       location: item.name,
-                                      location_id: item.id
+                                      location_id: item.name
                                     });
                                     setActiveLevel(null);
                                   }
