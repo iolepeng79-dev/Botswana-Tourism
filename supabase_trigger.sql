@@ -23,7 +23,7 @@ ON CONFLICT DO NOTHING;
 
 -- 3. INSERT TOWNS / VILLAGES
 INSERT INTO public.locations (name, type, parent_id)
-SELECT town, type,
+SELECT town, type::location_type,
 (SELECT id FROM locations WHERE name = district AND type='district')
 FROM (VALUES
 ('South-East','Gaborone','city'),

@@ -53,19 +53,26 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   const [paymentMethods, setPaymentMethods] = useState<any[]>(DEFAULT_PAYMENT_METHODS);
   const [loading, setLoading] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  
+  // Dynamic loading states for locations
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingSettlements, setLoadingSettlements] = useState(false);
+  const [loadingRegions, setLoadingRegions] = useState(false);
+  const [loadingLocations, setLoadingLocations] = useState(false);
 
   // Fetch initial data
   const fetchInitialData = async () => {
     if (!supabase) return;
     
+    setLoadingDistricts(true);
     // Districts
     const { data: distData } = await supabase
       .from('locations')
       .select('*')
       .eq('type', 'district')
-      .is('parent_id', null)
       .order('name');
     if (distData) setDistricts(distData);
+    setLoadingDistricts(false);
 
     // Packages
     const { data: pkgData } = await supabase
@@ -103,17 +110,19 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     }
     
     async function fetchSettlements() {
+      setLoadingSettlements(true);
       const { data } = await supabase
         .from('locations')
         .select('*')
         .eq('parent_id', formData.district_id)
         .order('name');
       if (data) setSettlements(data);
+      setLoadingSettlements(false);
     }
     fetchSettlements();
   }, [formData.district_id]);
 
-  // Fetch dependent regions (Area/Region)
+  // Fetch dependent regions (Area/Region/Ward/Kgotla)
   useEffect(() => {
     if (!supabase || !formData.settlement_id) {
       setRegions([]);
@@ -121,17 +130,19 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     }
     
     async function fetchRegions() {
+      setLoadingRegions(true);
       const { data } = await supabase
         .from('locations')
         .select('*')
         .eq('parent_id', formData.settlement_id)
         .order('name');
       if (data) setRegions(data);
+      setLoadingRegions(false);
     }
     fetchRegions();
   }, [formData.settlement_id]);
 
-  // Fetch dependent locations (Specific Location)
+  // Fetch dependent locations (Specific Location/Settlement)
   useEffect(() => {
     if (!supabase || !formData.region_id) {
       setLocations([]);
@@ -139,12 +150,14 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     }
     
     async function fetchLocations() {
+      setLoadingLocations(true);
       const { data } = await supabase
         .from('locations')
         .select('*')
         .eq('parent_id', formData.region_id)
         .order('name');
       if (data) setLocations(data);
+      setLoadingLocations(false);
     }
     fetchLocations();
   }, [formData.region_id]);
@@ -478,119 +491,143 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                     </div>
                   )}
 
-                  <div className="space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1">District</label>
-                      <div className="relative">
-                        <select 
-                          required
-                          className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer"
-                          value={formData.district_id}
-                          onChange={e => {
-                            const id = e.target.value;
-                            const name = districts.find(d => d.id === id)?.name || '';
-                            setFormData({
-                              ...formData, 
-                              district: name, 
-                              district_id: id,
-                              settlement: '', 
-                              settlement_id: '',
-                              region: '', 
-                              region_id: '',
-                              location: '', 
-                              location_id: '',
-                              verified_location: true
-                            });
-                          }}
-                        >
-                          <option value="">Select District</option>
-                          {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                          {loadingDistricts ? 'Loading Districts...' : 'Select District'}
+                        </label>
+                        <div className="relative">
+                          <select 
+                            required
+                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer"
+                            value={formData.district_id}
+                            onChange={e => {
+                              const id = e.target.value;
+                              const name = districts.find(d => d.id === id)?.name || '';
+                              setFormData({
+                                ...formData, 
+                                district: name, 
+                                district_id: id,
+                                settlement: '', 
+                                settlement_id: '',
+                                region: '', 
+                                region_id: '',
+                                location: '', 
+                                location_id: '',
+                                verified_location: true
+                              });
+                            }}
+                          >
+                            <option value="">Choose a District</option>
+                            {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                          {loadingDistricts ? (
+                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Town / Village</label>
-                      <div className="relative">
-                        <select 
-                          required={formData.verified_location}
-                          disabled={!formData.district_id}
-                          className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
-                          value={formData.settlement_id}
-                          onChange={e => {
-                            const id = e.target.value;
-                            const name = settlements.find(s => s.id === id)?.name || '';
-                            setFormData({
-                              ...formData, 
-                              settlement: name, 
-                              settlement_id: id,
-                              region: '', 
-                              region_id: '',
-                              location: '', 
-                              location_id: ''
-                            });
-                          }}
-                        >
-                          <option value="">Select Town / Village</option>
-                          {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                          {loadingSettlements ? 'Loading...' : 'Select Town / Village'}
+                        </label>
+                        <div className="relative">
+                          <select 
+                            required={formData.verified_location}
+                            disabled={!formData.district_id || loadingSettlements}
+                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
+                            value={formData.settlement_id}
+                            onChange={e => {
+                              const id = e.target.value;
+                              const name = settlements.find(s => s.id === id)?.name || '';
+                              setFormData({
+                                ...formData, 
+                                settlement: name, 
+                                settlement_id: id,
+                                region: '', 
+                                region_id: '',
+                                location: '', 
+                                location_id: ''
+                              });
+                            }}
+                          >
+                            <option value="">Choose Town / Village</option>
+                            {settlements.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                          {loadingSettlements ? (
+                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Ward / Suburb / Area</label>
-                      <div className="relative">
-                        <select 
-                          required={formData.verified_location && settlements.length > 0}
-                          disabled={!formData.settlement_id}
-                          className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
-                          value={formData.region_id}
-                          onChange={e => {
-                            const id = e.target.value;
-                            const name = regions.find(r => r.id === id)?.name || '';
-                            setFormData({
-                              ...formData, 
-                              region: name, 
-                              region_id: id,
-                              location: '', 
-                              location_id: ''
-                            });
-                          }}
-                        >
-                          <option value="">Select Ward / Suburb / Area</option>
-                          {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                          {loadingRegions ? 'Loading...' : 'Select Area / Ward / Kgotla'}
+                        </label>
+                        <div className="relative">
+                          <select 
+                            required={formData.verified_location && settlements.length > 0}
+                            disabled={!formData.settlement_id || loadingRegions}
+                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
+                            value={formData.region_id}
+                            onChange={e => {
+                              const id = e.target.value;
+                              const name = regions.find(r => r.id === id)?.name || '';
+                              setFormData({
+                                ...formData, 
+                                region: name, 
+                                region_id: id,
+                                location: '', 
+                                location_id: ''
+                              });
+                            }}
+                          >
+                            <option value="">Choose Area / Ward / Kgotla</option>
+                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                          {loadingRegions ? (
+                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Specific Location</label>
-                      <div className="relative">
-                        <select 
-                          required={formData.verified_location && regions.length > 0}
-                          disabled={!formData.region_id}
-                          className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
-                          value={formData.location_id}
-                          onChange={e => {
-                            const id = e.target.value;
-                            const name = locations.find(l => l.id === id)?.name || '';
-                            setFormData({
-                              ...formData, 
-                              location: name,
-                              location_id: id
-                            });
-                          }}
-                        >
-                          <option value="">Select Specific Location</option>
-                          {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                          {loadingLocations ? 'Loading...' : 'Select Specific Settlement / Location'}
+                        </label>
+                        <div className="relative">
+                          <select 
+                            required={formData.verified_location && regions.length > 0}
+                            disabled={!formData.region_id || loadingLocations}
+                            className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer disabled:opacity-50"
+                            value={formData.location_id}
+                            onChange={e => {
+                              const id = e.target.value;
+                              const name = locations.find(l => l.id === id)?.name || '';
+                              setFormData({
+                                ...formData, 
+                                location: name,
+                                location_id: id
+                              });
+                            }}
+                          >
+                            <option value="">Choose Specific Location</option>
+                            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                          </select>
+                          {loadingLocations ? (
+                            <Activity className="w-4 h-4 text-emerald-500 absolute right-12 top-1/2 -translate-y-1/2 animate-pulse" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
                   {/* Fallback Section */}
                   <div className="pt-4 border-t border-slate-100">
