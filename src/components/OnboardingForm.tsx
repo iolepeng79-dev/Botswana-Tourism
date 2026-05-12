@@ -468,13 +468,16 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Country</label>
-                    <select 
-                      className="w-full bg-slate-100 border-none rounded-2xl p-5 text-sm font-black focus:ring-2 focus:ring-indigo-600 appearance-none"
-                      value={formData.country}
-                      onChange={e => setFormData({...formData, country: e.target.value})}
-                    >
-                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select 
+                        className="w-full bg-slate-100 border-none rounded-2xl p-5 pr-12 text-sm font-black focus:ring-2 focus:ring-indigo-600 appearance-none cursor-pointer"
+                        value={formData.country}
+                        onChange={e => setFormData({...formData, country: e.target.value})}
+                      >
+                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -558,7 +561,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                     <div className="space-y-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingDistricts ? 'Loading Districts...' : '1. Select District'}
+                          District
                         </label>
                         <div className="relative">
                           <select 
@@ -595,7 +598,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingSettlements ? 'Loading...' : '2. Select City / Town / Village'}
+                          City / Town / Village
                         </label>
                         <div className="relative">
                           <select 
@@ -630,7 +633,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingRegions ? 'Loading...' : '3. Select Area / Ward / Kgotla'}
+                          Area / Ward / Kgotla
                         </label>
                         <div className="relative">
                           <select 
@@ -663,7 +666,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingLocations ? 'Loading...' : '4. Select Special Place / Settlement'}
+                          Special Place / Settlement
                         </label>
                         <div className="relative">
                           <select 
