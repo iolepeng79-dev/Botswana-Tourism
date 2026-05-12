@@ -57,6 +57,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   const [loadingSettlements, setLoadingSettlements] = useState(false);
   const [loadingRegions, setLoadingRegions] = useState(false);
   const [loadingLocations, setLoadingLocations] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Fetch initial data
   const fetchInitialData = async () => {
@@ -188,13 +189,14 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
   };
   const handleBack = () => setStep(step - 1);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Final location validation
     let submissionData = { ...formData, role };
     
     if (role === 'Business') {
+      setLoading(true);
       if (formData.verified_location) {
         // Ensure the selected location_id is actually valid in the final list
         const isValid = locations.some(l => l.id === formData.location_id);
@@ -208,9 +210,29 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
         submissionData.settlement_id = '';
         submissionData.region_id = '';
       }
+
+      // Simulation of sending to admin for approval
+      if (supabase) {
+        try {
+          await supabase.from('businesses').insert([{
+            business_name: formData.business_name,
+            category: formData.category,
+            email: formData.email,
+            owner_id: 'pending', // Temporary owner ID or handle via auth
+            status: 'Pending',
+            location_id: submissionData.location_id,
+            ...submissionData
+          }]);
+        } catch (err) {
+          console.error("Submission error:", err);
+        }
+      }
+      
+      setLoading(false);
+      setIsSubmitted(true);
+    } else {
+      onComplete(submissionData);
     }
-    
-    onComplete(submissionData);
   };
 
   const getBusinessSteps = () => [
@@ -293,7 +315,34 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
             <X className="w-6 h-6" />
           </button>
 
-          <form onSubmit={handleSubmit} className="h-full flex flex-col max-w-lg">
+          {isSubmitted ? (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in-95">
+              <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-emerald-100 animate-bounce">
+                <CheckCircle className="w-12 h-12" />
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-4xl font-black text-slate-900 tracking-tight">Successfully Submitted!</h3>
+                <p className="text-slate-500 font-bold uppercase tracking-widest text-xs leading-relaxed max-w-sm mx-auto">
+                  Your business profile has been sent to our admins for approval.
+                </p>
+                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                  <p className="text-sm font-black text-slate-900 leading-relaxed">
+                    Please come back after <span className="text-emerald-600">2 minutes</span>.
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                    We are verifying your BTO license and location.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={onCancel}
+                className="px-12 py-5 bg-slate-900 text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-2xl shadow-slate-200 hover:scale-105 transition-all"
+              >
+                Return to Home
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="h-full flex flex-col max-w-lg">
             {step === 0 && !initialRole && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
                 <div className="space-y-2">
@@ -861,18 +910,23 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                           ) : (
                             <button 
                               type="submit"
-                              disabled={!isStepValid()}
+                              disabled={!isStepValid() || loading}
                               className={cn(
                                 "w-full py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-3",
-                                !isStepValid() ? "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none" : "bg-slate-900 text-white shadow-slate-200 hover:bg-slate-800"
+                                !isStepValid() || loading ? "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none" : "bg-slate-900 text-white shadow-slate-200 hover:bg-slate-800"
                               )}
                             >
-                              Complete Registration <CheckCircle className="w-4 h-4" />
+                              {loading ? (
+                                <Activity className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>Complete Registration <CheckCircle className="w-4 h-4" /></>
+                              )}
                             </button>
                           )}
                         </div>
             </div>
           </form>
+          )}
         </div>
       </div>
     </div>

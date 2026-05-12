@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { User, Shield, Briefcase, Mail, Lock, ArrowRight, CheckCircle, ChevronLeft, X } from 'lucide-react';
+import { User, Shield, Briefcase, Mail, Lock, ArrowRight, CheckCircle, ChevronLeft, X, Activity } from 'lucide-react';
 import { cn } from '../lib/utils';
 import OnboardingForm from './OnboardingForm';
 import { UserRole } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface AuthViewProps {
   onLogin: (role: UserRole) => void;
@@ -16,11 +17,55 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulation of login
-    onLogin(loginRole);
+    setLoading(true);
+    setError(null);
+
+    // Simulation of login check
+    if (loginRole === 'Business') {
+      // Simulate checking business status in Supabase
+      if (supabase) {
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('businesses')
+            .select('status')
+            .eq('email', email)
+            .single();
+          
+          if (data && data.status !== 'Approved') {
+             setError("Your business is currently pending approval. Please come back after 2 minutes.");
+             setLoading(false);
+             return;
+          }
+          
+          if (!data && email !== 'business@example.bw') {
+             // For demo, if not my mock business and not in DB
+             setError("Account not found or pending approval.");
+             setLoading(false);
+             return;
+          }
+        } catch (err) {
+          console.error("Login verification error:", err);
+        }
+      } else {
+        // Fallback for no supabase (mock check)
+        if (email.includes('pending')) {
+          setError("Your business is currently pending approval. Please come back after 2 minutes.");
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    // Success
+    setTimeout(() => {
+      onLogin(loginRole);
+      setLoading(false);
+    }, 1000);
   };
 
   const handleResetPassword = (e: React.FormEvent) => {
@@ -96,6 +141,13 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
                 </div>
 
                 <div className="space-y-4">
+                  {error && (
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                       <X className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                       <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider leading-relaxed">{error}</p>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Email Address</label>
                     <div className="relative">
@@ -138,9 +190,14 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
 
                 <button 
                   type="submit"
-                  className="w-full bg-slate-900 text-white rounded-3xl py-5 font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group"
+                  disabled={loading}
+                  className="w-full bg-slate-900 text-white rounded-3xl py-5 font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
                 >
-                  Sign In <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  {loading ? (
+                    <Activity className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>Sign In <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                  )}
                 </button>
 
                 <div className="text-center pt-8 space-y-4">

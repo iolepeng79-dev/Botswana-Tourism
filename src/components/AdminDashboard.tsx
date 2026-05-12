@@ -159,6 +159,26 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
+  async function handleStatusUpdate(bizId: string, status: 'Approved' | 'Rejected') {
+    if (!supabase) {
+      setBusinesses(prev => prev.map(b => b.id === bizId ? { ...b, status } : b));
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('businesses')
+        .update({ status })
+        .eq('id', bizId);
+      
+      if (error) throw error;
+      await fetchAdminData();
+    } catch (error) {
+      console.error('Error updating business status:', error);
+      alert('Failed to update status');
+    }
+  }
+
   const pendingBusinesses = businesses.filter(b => b.status === 'Pending');
   const stats = useMemo(() => {
     const totalRev = bookings.reduce((acc, b) => acc + (b.status === 'confirmed' || b.status === 'completed' ? b.amount : 0), 0);
@@ -373,8 +393,16 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                                <FileText className="w-4 h-4" /> View Documents
                              </a>
                              <div className="ml-auto flex gap-3">
-                               <button className="px-10 py-3 bg-rose-50 text-rose-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100">Reject Application</button>
-                               <button className="px-12 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all flex items-center gap-2">
+                               <button 
+                                 onClick={() => handleStatusUpdate(biz.id, 'Rejected')}
+                                 className="px-10 py-3 bg-rose-50 text-rose-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100"
+                               >
+                                 Reject Application
+                               </button>
+                               <button 
+                                 onClick={() => handleStatusUpdate(biz.id, 'Approved')}
+                                 className="px-12 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
+                               >
                                   <CheckCircle2 className="w-4 h-4" /> Approve Application
                                </button>
                              </div>
