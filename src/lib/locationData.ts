@@ -13,52 +13,6 @@ export const BOTSWANA_LOCATIONS_HIERARCHY: LocationEntry[] = [
     type: "district",
     children: [
       {
-        name: "Gaborone",
-        type: "city",
-        children: [
-          { name: "Block 3", type: "area" },
-          { name: "Block 5", type: "area" },
-          { name: "Block 6", type: "area" },
-          { name: "Block 7", type: "area" },
-          { name: "Block 8", type: "area" },
-          { name: "Block 9", type: "area" },
-          { name: "Block 10", type: "area" },
-          { name: "Extension 2", type: "area" },
-          { name: "Extension 4", type: "area" },
-          { name: "Phase 1", type: "area" },
-          { name: "Broadhurst", type: "area" },
-          { name: "Village", type: "area" },
-          { name: "CBD", type: "area", children: [
-            { name: "Main Mall", type: "special_place" },
-            { name: "Commerce Park", type: "special_place" },
-            { name: "Kgale Hill", type: "special_place" },
-            { name: "Gaborone Dam", type: "special_place" },
-            { name: "Riverwalk", type: "special_place" },
-            { name: "Fairgrounds", type: "special_place" },
-            { name: "Airport Junction", type: "special_place" }
-          ]},
-          { name: "Gaborone West", type: "area" },
-          { name: "Old Naledi", type: "area" },
-          { name: "Bontleng", type: "area" }
-        ]
-      },
-      {
-        name: "Tlokweng",
-        type: "village",
-        children: [
-          { name: "Tlokweng Central", type: "ward" },
-          { name: "Tlokweng Border Gate", type: "ward", children: [
-            { name: "Border Post", type: "special_place" }
-          ]},
-          { name: "Tlokweng Industrial", type: "ward", children: [
-            { name: "Tlokweng Shopping Complex", type: "special_place" }
-          ]},
-          { name: "Tlokweng Kgotla", type: "ward", children: [
-             { name: "River Crossing", type: "special_place" }
-          ]}
-        ]
-      },
-      {
         name: "Ramotswa",
         type: "village",
         children: [
@@ -70,7 +24,108 @@ export const BOTSWANA_LOCATIONS_HIERARCHY: LocationEntry[] = [
             { name: "Ramotswa Border Route", type: "special_place" }
           ]}
         ]
+      },
+      {
+        name: "Otse",
+        type: "village",
+        children: [
+          { name: "Otse Central", type: "ward" },
+          { name: "Otse Kgotla", type: "ward", children: [
+            { name: "Manyelanong", type: "special_place" }
+          ]}
+        ]
+      },
+      {
+        name: "Mogobane",
+        type: "village",
+        children: [
+          { name: "Mogobane Central", type: "ward" }
+        ]
       }
+    ]
+  },
+  {
+    name: "Tlokweng District",
+    type: "district",
+    children: [
+      { name: "Tlokweng Central", type: "ward" },
+      { name: "Tlokweng Border Gate", type: "ward", children: [
+        { name: "Border Post", type: "special_place" }
+      ]},
+      { name: "Tlokweng Industrial", type: "ward", children: [
+        { name: "Tlokweng Shopping Complex", type: "special_place" }
+      ]},
+      { name: "Tlokweng Kgotla", type: "ward", children: [
+         { name: "River Crossing", type: "special_place" }
+      ]}
+    ]
+  },
+  {
+    name: "Gaborone City",
+    type: "district",
+    children: [
+      { name: "Block 3", type: "area" },
+      { name: "Block 5", type: "area" },
+      { name: "Block 6", type: "area" },
+      { name: "Block 7", type: "area" },
+      { name: "Block 8", type: "area" },
+      { name: "Block 9", type: "area" },
+      { name: "Block 10", type: "area" },
+      { name: "Extension 2", type: "area" },
+      { name: "Extension 4", type: "area" },
+      { name: "Phase 1", type: "area" },
+      { name: "Broadhurst", type: "area" },
+      { name: "Village", type: "area" },
+      { name: "CBD", type: "area", children: [
+        { name: "Main Mall", type: "special_place" },
+        { name: "Commerce Park", type: "special_place" },
+        { name: "Kgale Hill", type: "special_place" },
+        { name: "Gaborone Dam", type: "special_place" },
+        { name: "Riverwalk", type: "special_place" },
+        { name: "Fairgrounds", type: "special_place" },
+        { name: "Airport Junction", type: "special_place" }
+      ]},
+      { name: "Gaborone West", type: "area" },
+      { name: "Old Naledi", type: "area" },
+      { name: "Bontleng", type: "area" }
+    ]
+  },
+  {
+    name: "Francistown City",
+    type: "district",
+    children: [
+      { name: "Somerset East", type: "area" },
+      { name: "Somerset West", type: "area" },
+      { name: "Monarch", type: "area" },
+      { name: "Blue Jacket", type: "area" },
+      { name: "Satellite", type: "area", children: [
+        { name: "Tati River", type: "special_place" },
+        { name: "Gerald Estates", type: "special_place" },
+        { name: "Francistown CBD", type: "special_place" }
+      ]}
+    ]
+  },
+  {
+    name: "Lobatse Town",
+    type: "district",
+    children: [
+      { name: "Peleng", type: "area" },
+      { name: "Woodhall", type: "area" },
+      { name: "BC Ridge", type: "area" },
+      { name: "Lobatse CBD", type: "area", children: [
+        { name: "Cumberland Hotel", type: "special_place" },
+        { name: "Meat Commission", type: "special_place" }
+      ]}
+    ]
+  },
+  {
+    name: "Selebi-Phikwe Town",
+    type: "district",
+    children: [
+      { name: "Phikwe Central", type: "area" },
+      { name: "Industrial Area", type: "area" },
+      { name: "Sesame", type: "area" },
+      { name: "Mekoro", type: "area" }
     ]
   },
   {
@@ -91,6 +146,15 @@ export const BOTSWANA_LOCATIONS_HIERARCHY: LocationEntry[] = [
             { name: "Scottish Livingstone Hospital", type: "special_place" },
             { name: "Molepolole Industrial", type: "special_place" }
           ]}
+        ]
+      },
+      {
+        name: "Mogoditshane",
+        type: "village",
+        children: [
+          { name: "Ledumadumane", type: "ward" },
+          { name: "Mogoditshane North", type: "ward" },
+          { name: "Nkoyaphiri", type: "ward" }
         ]
       },
       {
@@ -139,35 +203,39 @@ export const BOTSWANA_LOCATIONS_HIERARCHY: LocationEntry[] = [
     ]
   },
   {
-    name: "Southern District",
+    name: "Jwaneng Town",
     type: "district",
     children: [
-      {
-        name: "Kanye",
-        type: "village",
-        children: [
-          { name: "Seherelela", type: "ward" },
-          { name: "Mafhikana", type: "ward" },
-          { name: "Kanye Central", type: "ward" },
-          { name: "Kanye Kgotla", type: "ward", children: [
-            { name: "Bangwaketse Main Kgotla", type: "special_place" },
-            { name: "Kanye Hills", type: "special_place" }
-          ]}
-        ]
-      },
-      {
-        name: "Jwaneng",
-        type: "town",
-        children: [
-          { name: "Phase 1", type: "area" },
-          { name: "Phase 2", type: "area" },
-          { name: "Industrial Area", type: "area", children: [
-             { name: "Jwaneng Mine", type: "special_place" },
-             { name: "Airport Area", type: "special_place" },
-             { name: "Mine Residential Camp", type: "special_place" }
-          ]}
-        ]
-      }
+      { name: "Phase 1", type: "area" },
+      { name: "Phase 2", type: "area" },
+      { name: "Industrial Area", type: "area", children: [
+         { name: "Jwaneng Mine", type: "special_place" },
+         { name: "Airport Area", type: "special_place" },
+         { name: "Mine Residential Camp", type: "special_place" }
+      ]}
+    ]
+  },
+  {
+    name: "Orapa Town",
+    type: "district",
+    children: [
+      { name: "Orapa Camp", type: "area" },
+      { name: "Orapa Central", type: "area", children: [
+        { name: "Orapa Mine", type: "special_place" },
+        { name: "Orapa Airport", type: "special_place" },
+        { name: "Game Park", type: "special_place" }
+      ]}
+    ]
+  },
+  {
+    name: "Sowa Town",
+    type: "district",
+    children: [
+      { name: "Sowa Central", type: "area" },
+      { name: "Plant Area", type: "area", children: [
+        { name: "Botash Mine", type: "special_place" },
+        { name: "Salt Pan", type: "special_place" }
+      ]}
     ]
   },
   {
@@ -202,15 +270,11 @@ export const BOTSWANA_LOCATIONS_HIERARCHY: LocationEntry[] = [
         ]
       },
       {
-        name: "Orapa",
+        name: "Mahalapye",
         type: "town",
         children: [
-          { name: "Orapa Camp", type: "area" },
-          { name: "Orapa Central", type: "area", children: [
-            { name: "Orapa Mine", type: "special_place" },
-            { name: "Orapa Airport", type: "special_place" },
-            { name: "Game Park", type: "special_place" }
-          ]}
+          { name: "Madiba", type: "ward" },
+          { name: "Mahalapye Central", type: "ward" }
         ]
       }
     ]
@@ -219,21 +283,6 @@ export const BOTSWANA_LOCATIONS_HIERARCHY: LocationEntry[] = [
     name: "North-East District",
     type: "district",
     children: [
-      {
-        name: "Francistown",
-        type: "city",
-        children: [
-          { name: "Somerset East", type: "area" },
-          { name: "Somerset West", type: "area" },
-          { name: "Monarch", type: "area" },
-          { name: "Blue Jacket", type: "area" },
-          { name: "Satellite", type: "area", children: [
-            { name: "Tati River", type: "special_place" },
-            { name: "Gerald Estates", type: "special_place" },
-            { name: "Francistown CBD", type: "special_place" }
-          ]}
-        ]
-      },
       {
         name: "Maitengwe",
         type: "village",
