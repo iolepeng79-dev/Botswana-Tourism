@@ -182,13 +182,28 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
       }
       if (step === 2) {
         if (formData.verified_location) {
-          // Relax validation: only Level 1 and 2 are strictly required if 3 or 4 have no data
-          const isL1Valid = !!formData.district_id;
-          const isL2Valid = !!formData.settlement_id;
-          const isL3Valid = regions.length === 0 || !!formData.region_id;
-          const isL4Valid = locations.length === 0 || !!formData.location_id;
+          const hasDistricts = districts.length > 0;
+          const hasSettlements = settlements.length > 0;
+          const hasRegions = regions.length > 0;
+          const hasFinalLocations = locations.length > 0;
+
+          const l1Selected = !!formData.district_id;
+          const l2Selected = !!formData.settlement_id;
+          const l3Selected = !!formData.region_id;
+          const l4Selected = !!formData.location_id;
+
+          // Requirements:
+          // 1. Level 1 must be selected if districts exist
+          // 2. Level 2 must be selected if settlements exist (given L1 is selected)
+          // 3. Level 3 must be selected if regions exist (given L2 is selected)
+          // 4. Level 4 must be selected if special places exist (given L3 is selected)
           
-          return isL1Valid && isL2Valid && isL3Valid && isL4Valid;
+          const v1 = !hasDistricts || l1Selected;
+          const v2 = !hasSettlements || l2Selected;
+          const v3 = !hasRegions || l3Selected;
+          const v4 = !hasFinalLocations || l4Selected;
+
+          return v1 && v2 && v3 && v4;
         } else {
           return formData.manual_address && formData.latitude && formData.longitude;
         }
@@ -218,14 +233,22 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     
     if (role === 'Business') {
       setLoading(true);
+      
+      // Determine final location_id from hierarchy
+      let finalLocationId = null;
       if (formData.verified_location) {
-        // Ensure the selected location_id is actually valid in the final list
-        const isValid = locations.some(l => l.id === formData.location_id);
-        if (!isValid) {
-          submissionData.location_id = null;
-        }
-      } else {
-        // Manual input resets the hierarchical IDs
+        // Use the deepest selected level as the primary location_id
+        finalLocationId = formData.location_id || formData.region_id || formData.settlement_id || formData.district_id || null;
+      }
+
+      const submissionData = { 
+        ...formData, 
+        role,
+        location_id: finalLocationId
+      };
+      
+      if (!formData.verified_location) {
+        // Manual input resets the hierarchical IDs for the final submission
         submissionData.location_id = null;
         submissionData.district_id = '';
         submissionData.settlement_id = '';
