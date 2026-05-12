@@ -190,7 +190,27 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onComplete({ ...formData, role });
+    
+    // Final location validation
+    let submissionData = { ...formData, role };
+    
+    if (role === 'Business') {
+      if (formData.verified_location) {
+        // Ensure the selected location_id is actually valid in the final list
+        const isValid = locations.some(l => l.id === formData.location_id);
+        if (!isValid) {
+          submissionData.location_id = null;
+        }
+      } else {
+        // Manual input resets the hierarchical IDs
+        submissionData.location_id = null;
+        submissionData.district_id = '';
+        submissionData.settlement_id = '';
+        submissionData.region_id = '';
+      }
+    }
+    
+    onComplete(submissionData);
   };
 
   const getBusinessSteps = () => [
@@ -517,7 +537,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingRegions ? 'Loading...' : 'Select Area / Ward / Kgotla'}
+                          {loadingRegions ? 'Loading...' : 'Select Area / Ward / Kgotla / Suburb'}
                         </label>
                         <div className="relative">
                           <select 
@@ -537,7 +557,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                               });
                             }}
                           >
-                            <option value="">Choose Area / Ward / Kgotla</option>
+                            <option value="">Choose Area / Ward / Kgotla / Suburb</option>
                             {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                           </select>
                           {loadingRegions ? (
@@ -550,7 +570,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                          {loadingLocations ? 'Loading...' : 'Select Specific Settlement / Location'}
+                          {loadingLocations ? 'Loading...' : 'Select Settlement / Safari Zone / Specific Location'}
                         </label>
                         <div className="relative">
                           <select 
@@ -568,7 +588,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                               });
                             }}
                           >
-                            <option value="">Choose Specific Location</option>
+                            <option value="">Choose Settlement / Safari Zone / Location</option>
                             {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                           </select>
                           {loadingLocations ? (

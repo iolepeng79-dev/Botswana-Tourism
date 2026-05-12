@@ -176,7 +176,7 @@ export interface AnalyticsEvent {
   created_at?: string;
 }
 
-export type LocationType = 'district' | 'city' | 'town' | 'village' | 'suburb' | 'ward' | 'area' | 'kgotla' | 'settlement' | 'location';
+export type LocationType = 'district' | 'city' | 'town' | 'village' | 'suburb' | 'ward' | 'area' | 'kgotla' | 'settlement' | 'location' | 'tourism_area' | 'safari_zone';
 
 export interface Location {
   id: string;
