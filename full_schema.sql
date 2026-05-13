@@ -229,17 +229,74 @@ INSERT INTO public.payment_methods (id, name, account_number, instructions) VALU
 ('myzaka', 'Mascom MyZaka', '75666237', 'Send to Mascom MyZaka number 75666237.')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, account_number = EXCLUDED.account_number, instructions = EXCLUDED.instructions;
 
--- 6. TRIGGERS & FUNCTIONS (FROM EXISTING TRIGGER FILE)
+-- 6. TRIGGERS, FUNCTIONS & SEED DATA (CONSOLIDATED)
 
 -- Ensure location type constraint matches enum
 ALTER TABLE public.locations DROP CONSTRAINT IF EXISTS location_type_check;
-ALTER TABLE public.locations ADD CONSTRAINT location_type_check CHECK (type::text IN ('district','city','town','village','suburb','ward','settlement','location'));
+ALTER TABLE public.locations ADD CONSTRAINT location_type_check CHECK (type::text IN ('district','city','town','village','suburb','ward','settlement','location','tourism_area','safari_zone','special_place'));
 
--- Pre-populate Locations (Districts)
+-- A. PRE-POPULATE LOCATIONS (DISTRICTS)
 INSERT INTO public.locations (name, type) VALUES
 ('South-East','district'), ('Kweneng','district'), ('Kgatleng','district'), ('Southern','district'), ('Central','district'),
 ('North-East','district'), ('North-West','district'), ('Chobe','district'), ('Ghanzi','district'), ('Kgalagadi','district')
 ON CONFLICT (name, type, parent_id) DO NOTHING;
+
+-- B. INSERT TOWNS / VILLAGES
+INSERT INTO public.locations (name, type, parent_id)
+SELECT town, type::location_type,
+(SELECT id FROM locations WHERE name = district AND type='district')
+FROM (VALUES
+('South-East','Gaborone','city'),
+('South-East','Tlokweng','village'),
+('South-East','Ramotswa','village'),
+('Kweneng','Molepolole','village'),
+('Kweneng','Thamaga','village'),
+('North-West','Maun','town'),
+('North-West','Shakawe','village'),
+('Chobe','Kasane','town'),
+('Chobe','Kachikau','village'),
+('Central','Serowe','village'),
+('Central','Palapye','town'),
+('Central','Mahalapye','town'),
+('Southern','Kanye','village'),
+('Southern','Moshupa','village'),
+('Kgatleng','Mochudi','village'),
+('North-East','Francistown','city'),
+('Ghanzi','Ghanzi','town'),
+('Kgalagadi','Tsabong','village')
+) AS t(district, town, type)
+ON CONFLICT DO NOTHING;
+
+-- C. AUTO-GENERATE AREAS (WARDS / SUBURBS)
+INSERT INTO public.locations (name, type, parent_id)
+SELECT 
+  town.name || ' Ward ' || gs AS name,
+  'ward',
+  town.id
+FROM public.locations town
+CROSS JOIN generate_series(1, 10) gs
+WHERE town.type IN ('city','town','village')
+ON CONFLICT DO NOTHING;
+
+-- D. AUTO-GENERATE SPECIFIC LOCATIONS
+INSERT INTO public.locations (name, type, parent_id)
+SELECT
+  area.name || ' Location ' || gs,
+  'location',
+  area.id
+FROM public.locations area
+CROSS JOIN generate_series(1, 5) gs
+WHERE area.type IN ('ward','suburb','settlement')
+ON CONFLICT DO NOTHING;
+
+-- E. ADD REAL KEY TOURISM LOCATIONS
+INSERT INTO public.locations (name, type, parent_id)
+VALUES
+('Okavango Delta Camp','location',(SELECT id FROM locations WHERE name LIKE 'Maun Ward 1' LIMIT 1)),
+('Moremi Game Reserve','location',(SELECT id FROM locations WHERE name LIKE 'Maun Ward 2' LIMIT 1)),
+('Chobe National Park Gate','location',(SELECT id FROM locations WHERE name LIKE 'Kasane Ward 1' LIMIT 1)),
+('Kasane Waterfront','location',(SELECT id FROM locations WHERE name LIKE 'Kasane Ward 2' LIMIT 1))
+ON CONFLICT DO NOTHING;
 
 -- Validation Trigger for Location IDs
 CREATE OR REPLACE FUNCTION public.validate_location()
@@ -254,22 +311,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_validate_location ON public.businesses;
-CREATE TRIGGER trg_validate_location
-BEFORE INSERT OR UPDATE ON public.businesses
-FOR EACH ROW EXECUTE FUNCTION public.validate_location();
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_validate_location') THEN
+    CREATE TRIGGER trg_validate_location
+      BEFORE INSERT OR UPDATE ON public.businesses
+      FOR EACH ROW EXECUTE FUNCTION public.validate_location();
+  END IF;
+END $$;
 
 -- Profiles update on Auth User change
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.profiles (id, full_name, email, role)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email, (new.raw_user_meta_data->>'role')::user_role);
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email, COALESCE((new.raw_user_meta_data->>'role')::user_role, 'Tourist'));
   RETURN new;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created') THEN
+    CREATE TRIGGER on_auth_user_created
+      AFTER INSERT ON auth.users
+      FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+  END IF;
+END $$;
