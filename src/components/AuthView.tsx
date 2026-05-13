@@ -26,7 +26,7 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
     setError(null);
 
     // Special handling for hardcoded Admin
-    if (loginRole === 'Admin' && email === 'Admin' && password === 'Admin@72468080') {
+    if (loginRole === 'Admin' && email === 'admintourbots@gmail.com' && password === 'Admin@72468080') {
       setTimeout(() => {
         onLogin('Admin');
         setLoading(false);

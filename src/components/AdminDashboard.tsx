@@ -202,7 +202,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         // 1. Update the business package
         const { error: bizError } = await supabase
           .from('businesses')
-          .update({ package_id: request.requested_package_id })
+          .update({ package_id: request.requested_package })
           .eq('id', request.business_id);
         
         if (bizError) throw bizError;

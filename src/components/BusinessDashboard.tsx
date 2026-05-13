@@ -214,10 +214,10 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
         .insert([{
           business_id: business.id,
           business_name: business.business_name,
-          current_package_id: business.package_id,
-          requested_package_id: requestedPackageId,
+          current_package: business.package_id,
+          requested_package: requestedPackageId,
           status: 'pending',
-          payment_proof: paymentProofUrl
+          payment_proof_url: paymentProofUrl
         }]);
 
       if (error) throw error;
