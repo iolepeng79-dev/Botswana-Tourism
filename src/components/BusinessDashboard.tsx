@@ -148,6 +148,8 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
   const [tempBookingData, setTempBookingData] = useState<Partial<Booking>>({});
   const [isAllBookingsModalOpen, setIsAllBookingsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSubmittingUpgrade, setIsSubmittingUpgrade] = useState(false);
+  const [upgradePaymentProof, setUpgradePaymentProof] = useState<File | null>(null);
   
   const [filters, setFilters] = useState<DashboardFilters>({
     year: new Date().getFullYear().toString(),
@@ -185,6 +187,51 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
       supabase.removeChannel(bookingSub);
     };
   }, [business?.id]);
+
+  const handleUpgradeRequest = async (requestedPackageId: string) => {
+    if (!supabase || !business) return;
+    
+    setIsSubmittingUpgrade(true);
+    try {
+      let paymentProofUrl = '';
+      
+      if (upgradePaymentProof) {
+        const file = upgradePaymentProof;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const { data: uploadData } = await supabase.storage
+          .from('verification-docs')
+          .upload(`upgrades/${fileName}`, file);
+        
+        if (uploadData) {
+          const { data: { publicUrl } } = supabase.storage.from('verification-docs').getPublicUrl(uploadData.path);
+          paymentProofUrl = publicUrl;
+        }
+      }
+
+      const { error } = await supabase
+        .from('package_upgrade_requests')
+        .insert([{
+          business_id: business.id,
+          business_name: business.business_name,
+          current_package_id: business.package_id,
+          requested_package_id: requestedPackageId,
+          status: 'pending',
+          payment_proof: paymentProofUrl
+        }]);
+
+      if (error) throw error;
+      
+      alert('Upgrade request submitted successfully! Our admin team will review it shortly.');
+      setIsUpgradeModalOpen(false);
+      setUpgradePaymentProof(null);
+    } catch (error) {
+      console.error('Error submitting upgrade request:', error);
+      alert('Failed to submit upgrade request. Please try again.');
+    } finally {
+      setIsSubmittingUpgrade(false);
+    }
+  };
 
   async function fetchDashboardData() {
     if (!supabase) {
@@ -1412,16 +1459,28 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
                        ref={paymentProofRef}
                        onChange={(e) => {
                          if (e.target.files?.[0]) {
-                           alert('Payment proof attached successfully.');
+                           setUpgradePaymentProof(e.target.files[0]);
                          }
                        }}
                     />
                     <button 
                        onClick={() => paymentProofRef.current?.click()}
-                       className="w-full py-4 bg-white border-2 border-dashed border-indigo-200 rounded-2xl flex flex-col items-center justify-center hover:bg-indigo-100 transition-all group"
+                       className={cn(
+                         "w-full py-4 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all group",
+                         upgradePaymentProof ? "border-emerald-600 bg-emerald-50" : "border-indigo-200 bg-white hover:bg-indigo-100"
+                       )}
                     >
-                       <Upload className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
-                       <span className="text-xs font-black uppercase text-indigo-600 mt-2">Attach Receipt / Slip</span>
+                       {upgradePaymentProof ? (
+                         <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                       ) : (
+                         <Upload className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
+                       )}
+                       <span className={cn(
+                         "text-xs font-black uppercase mt-2",
+                         upgradePaymentProof ? "text-emerald-700" : "text-indigo-600"
+                       )}>
+                         {upgradePaymentProof ? upgradePaymentProof.name : 'Attach Receipt / Slip'}
+                       </span>
                     </button>
                   </div>
 
@@ -1461,13 +1520,15 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
                         )}
                       </ul>
                       <button 
-                        disabled={isActive}
+                        disabled={isActive || isSubmittingUpgrade || !upgradePaymentProof}
+                        onClick={() => handleUpgradeRequest(p.id)}
                         className={cn(
                           "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all",
-                          isActive ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-emerald-600"
+                          isActive ? "bg-slate-100 text-slate-400 cursor-not-allowed" : 
+                          (!upgradePaymentProof ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-emerald-600")
                         )}
                       >
-                        {isActive ? 'Current Plan' : 'Select Plan'}
+                        {isActive ? 'Current Plan' : (isSubmittingUpgrade ? 'Submitting...' : 'Select Plan')}
                       </button>
                     </div>
                     );

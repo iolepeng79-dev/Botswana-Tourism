@@ -37,8 +37,8 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     location: '',
     location_id: '',
     package_id: 'standard',
-    payment_proof: null,
-    bto_ops: null,
+    payment_proof: null as File | null,
+    bto_ops: null as File | null,
     // Fallback location
     manual_address: '',
     latitude: '',
@@ -159,8 +159,8 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
           return formData.manual_address && formData.latitude && formData.longitude;
         }
       }
-      if (step === 3) return formData.package_id;
-      if (step === 4) return true; // Proofs are often optional in demo but let's say true for now
+      if (step === 3) return !!formData.package_id;
+      if (step === 4) return !!formData.payment_proof && !!formData.bto_ops;
       if (step === 5) return formData.password && formData.password.length >= 6;
     } else {
       if (step === 1) return formData.full_name && formData.email && formData.phone;
@@ -209,14 +209,58 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
       // Simulation of sending to admin for approval
       if (supabase) {
         try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          let paymentProofUrl = '';
+          let btoOpsUrl = '';
+
+          // Actual file upload logic
+          if (formData.payment_proof) {
+            const file = formData.payment_proof;
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const { data: uploadData } = await supabase.storage
+              .from('verification-docs')
+              .upload(`payments/${fileName}`, file);
+            if (uploadData) {
+              const { data: { publicUrl } } = supabase.storage.from('verification-docs').getPublicUrl(uploadData.path);
+              paymentProofUrl = publicUrl;
+            }
+          }
+
+          if (formData.bto_ops) {
+            const file = formData.bto_ops;
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const { data: uploadData } = await supabase.storage
+              .from('verification-docs')
+              .upload(`licenses/${fileName}`, file);
+            if (uploadData) {
+              const { data: { publicUrl } } = supabase.storage.from('verification-docs').getPublicUrl(uploadData.path);
+              btoOpsUrl = publicUrl;
+            }
+          }
+
           await supabase.from('businesses').insert([{
             business_name: formData.business_name,
             category: formData.category,
             email: formData.email,
-            owner_id: 'pending', // Temporary owner ID or handle via auth
+            owner_id: user?.id || 'pending',
             status: 'Pending',
             location_id: submissionData.location_id,
-            ...submissionData
+            location_name: formData.location || formData.region || formData.settlement || formData.district,
+            whatsapp: formData.whatsapp,
+            office_line: formData.office_line,
+            package_id: formData.package_id,
+            payment_proof: paymentProofUrl,
+            bto_ops_license: btoOpsUrl,
+            district: formData.district,
+            settlement: formData.settlement,
+            region: formData.region,
+            manual_address: formData.manual_address,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            verified_location: formData.verified_location
           }]);
         } catch (err) {
           console.error("Submission error:", err);
@@ -921,12 +965,18 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                       <input 
                         type="file" 
                         required
+                        onChange={e => setFormData({...formData, payment_proof: e.target.files?.[0] || null})}
                         className="absolute inset-0 opacity-0 cursor-pointer z-10" 
                       />
-                      <div className="border-2 border-dashed border-slate-200 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 group-hover:border-emerald-500 group-hover:bg-emerald-50/50 transition-all">
-                        <Upload className="w-10 h-10 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                      <div className={cn(
+                        "border-2 border-dashed rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 transition-all",
+                        formData.payment_proof ? "border-emerald-600 bg-emerald-50/50" : "border-slate-200 group-hover:border-emerald-500 group-hover:bg-emerald-50/50"
+                      )}>
+                        {formData.payment_proof ? <CheckCircle className="w-10 h-10 text-emerald-600" /> : <Upload className="w-10 h-10 text-slate-300 group-hover:text-emerald-500 transition-colors" />}
                         <div className="text-center">
-                          <p className="text-sm font-black text-slate-900 uppercase tracking-widest">Proof of Payment</p>
+                          <p className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                            {formData.payment_proof ? formData.payment_proof.name : 'Proof of Payment'}
+                          </p>
                           <p className="text-[10px] text-slate-400 font-bold mt-1">Upload Receipt or Transfer Note</p>
                         </div>
                       </div>
@@ -935,12 +985,18 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                       <input 
                         type="file" 
                         required
+                        onChange={e => setFormData({...formData, bto_ops: e.target.files?.[0] || null})}
                         className="absolute inset-0 opacity-0 cursor-pointer z-10" 
                       />
-                      <div className="border-2 border-dashed border-slate-200 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 group-hover:border-emerald-500 group-hover:bg-emerald-50/50 transition-all">
-                        <Shield className="w-10 h-10 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                      <div className={cn(
+                        "border-2 border-dashed rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 transition-all",
+                        formData.bto_ops ? "border-emerald-600 bg-emerald-50/50" : "border-slate-200 group-hover:border-emerald-500 group-hover:bg-emerald-50/50"
+                      )}>
+                        {formData.bto_ops ? <CheckCircle className="w-10 h-10 text-emerald-600" /> : <Shield className="w-10 h-10 text-slate-300 group-hover:text-emerald-500 transition-colors" />}
                         <div className="text-center">
-                          <p className="text-sm font-black text-slate-900 uppercase tracking-widest">BTO Operations License</p>
+                          <p className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                            {formData.bto_ops ? formData.bto_ops.name : 'BTO Operations License'}
+                          </p>
                           <p className="text-[10px] text-slate-400 font-bold mt-1">Valid Company Operations License</p>
                         </div>
                       </div>

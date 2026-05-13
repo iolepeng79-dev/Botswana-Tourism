@@ -172,10 +172,64 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         .eq('id', bizId);
       
       if (error) throw error;
+      
+      // Log the action
+      await supabase.from('audit_logs').insert([{
+        action: `${status} Business`,
+        details: `Business ${bizId} ${status.toLowerCase()} by Admin`,
+        timestamp: new Date().toISOString(),
+        admin_id: profile?.id || 'admin'
+      }]);
+
       await fetchAdminData();
     } catch (error) {
       console.error('Error updating business status:', error);
       alert('Failed to update status');
+    }
+  }
+
+  async function handleUpgradeAction(requestId: string, action: 'approved' | 'rejected') {
+    if (!supabase) {
+      setUpgradeRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: action as any } : r));
+      return;
+    }
+
+    try {
+      const request = upgradeRequests.find(r => r.id === requestId);
+      if (!request) return;
+
+      if (action === 'approved') {
+        // 1. Update the business package
+        const { error: bizError } = await supabase
+          .from('businesses')
+          .update({ package_id: request.requested_package_id })
+          .eq('id', request.business_id);
+        
+        if (bizError) throw bizError;
+      }
+
+      // 2. Update the request status
+      const { error: reqError } = await supabase
+        .from('package_upgrade_requests')
+        .update({ status: action })
+        .eq('id', requestId);
+      
+      if (reqError) throw reqError;
+
+      // 3. Log the action
+      await supabase.from('audit_logs').insert([{
+        action: `${action.charAt(0).toUpperCase() + action.slice(1)} Upgrade`,
+        details: `Upgrade request ${requestId} for business ${request.business_id} ${action}`,
+        timestamp: new Date().toISOString(),
+        admin_id: profile?.id || 'admin',
+        user_id: request.business_id
+      }]);
+
+      alert(`Upgrade request ${action} successfully.`);
+      await fetchAdminData();
+    } catch (error) {
+      console.error('Error processing upgrade request:', error);
+      alert('Failed to process upgrade request');
     }
   }
 
@@ -453,8 +507,18 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                                 <FileText className="w-5 h-5" />
                              </a>
                           )}
-                          <button className="px-10 py-4 bg-rose-50 text-rose-600 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all">Reject</button>
-                          <button className="px-10 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all">Approve Upgrade</button>
+                          <button 
+                             onClick={() => handleUpgradeAction(req.id, 'rejected')}
+                             className="px-10 py-4 bg-rose-50 text-rose-600 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all font-bold"
+                           >
+                             Reject
+                           </button>
+                          <button 
+                             onClick={() => handleUpgradeAction(req.id, 'approved')}
+                             className="px-10 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all font-bold"
+                           >
+                             Approve Upgrade
+                           </button>
                        </div>
                     </div>
                   ))}

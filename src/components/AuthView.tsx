@@ -25,6 +25,15 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
     setLoading(true);
     setError(null);
 
+    // Special handling for hardcoded Admin
+    if (loginRole === 'Admin' && email === 'Admin' && password === 'Admin@72468080') {
+      setTimeout(() => {
+        onLogin('Admin');
+        setLoading(false);
+      }, 500);
+      return;
+    }
+
     // Simulation of login check
     if (loginRole === 'Business') {
       // Simulate checking business status in Supabase
