@@ -36,7 +36,7 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
     region_id: '',
     location: '',
     location_id: '',
-    package_id: 'standard',
+    package_id: 'basic',
     payment_proof: null as File | null,
     bto_ops: null as File | null,
     // Fallback location
@@ -160,7 +160,12 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
         }
       }
       if (step === 3) return !!formData.package_id;
-      if (step === 4) return !!formData.payment_proof && !!formData.bto_ops;
+      if (step === 4) {
+        if (formData.package_id === 'basic') {
+          return !!formData.bto_ops;
+        }
+        return !!formData.payment_proof && !!formData.bto_ops;
+      }
       if (step === 5) return formData.password && formData.password.length >= 6;
     } else {
       if (step === 1) return formData.full_name && formData.email && formData.phone;
@@ -961,10 +966,11 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
+                   {!formData.package_id || formData.package_id !== 'basic' ? (
                    <div className="group relative">
                       <input 
                         type="file" 
-                        required
+                        required={formData.package_id !== 'basic'}
                         onChange={e => setFormData({...formData, payment_proof: e.target.files?.[0] || null})}
                         className="absolute inset-0 opacity-0 cursor-pointer z-10" 
                       />
@@ -981,6 +987,17 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
                         </div>
                       </div>
                    </div>
+                   ) : (
+                     <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
+                           <CheckCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                           <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Basic Plan Selected</p>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Proof of payment is not required for free plan.</p>
+                        </div>
+                     </div>
+                   )}
                    <div className="group relative">
                       <input 
                         type="file" 

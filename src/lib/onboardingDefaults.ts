@@ -1,7 +1,7 @@
 export const DEFAULT_PACKAGES = [
   {
-    id: 'standard',
-    name: 'Standard Plan',
+    id: 'basic',
+    name: 'Basic Plan',
     price: 0,
     features: {
       photos_allowed: 1,

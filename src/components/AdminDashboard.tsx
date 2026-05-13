@@ -113,7 +113,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       const mockBiz: Business[] = [
         { id: 'b1', business_name: 'Delta Cruises', status: 'Approved', category: 'Lodge', owner_id: 'o1', email: 'delta@info.bw', created_at: new Date().toISOString(), package_id: 'enterprise', location_name: 'Maun', media: [] },
         { id: 'b2', business_name: 'Savuti Camp', status: 'Pending', category: 'Safari Camp', owner_id: 'o2', email: 'savuti@safari.bw', created_at: new Date().toISOString(), package_id: 'professional', location_name: 'Kasane', payment_proof: 'https://example.com/receipt.pdf', media: [] },
-        { id: 'b3', business_name: 'Gaborone Hotel', status: 'Rejected', category: 'Hotel', owner_id: 'o3', email: 'gabs@hotel.bw', created_at: new Date().toISOString(), package_id: 'free', location_name: 'Gaborone', admin_comments: 'Incomplete documents.', media: [] }
+        { id: 'b3', business_name: 'Gaborone Hotel', status: 'Rejected', category: 'Hotel', owner_id: 'o3', email: 'gabs@hotel.bw', created_at: new Date().toISOString(), package_id: 'basic', location_name: 'Gaborone', admin_comments: 'Incomplete documents.', media: [] }
       ];
 
       setBusinesses(mockBiz);

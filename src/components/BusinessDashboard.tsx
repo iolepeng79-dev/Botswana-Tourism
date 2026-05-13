@@ -36,7 +36,8 @@ import {
   Mail,
   Shield,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Lock
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -150,6 +151,10 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmittingUpgrade, setIsSubmittingUpgrade] = useState(false);
   const [upgradePaymentProof, setUpgradePaymentProof] = useState<File | null>(null);
+  const [upgradeStep, setUpgradeStep] = useState<1 | 2 | 3>(1);
+  const [upgradePassword, setUpgradePassword] = useState('');
+  const [upgradePasswordError, setUpgradePasswordError] = useState('');
+  const [pendingPackageId, setPendingPackageId] = useState<string | null>(null);
   
   const [filters, setFilters] = useState<DashboardFilters>({
     year: new Date().getFullYear().toString(),
@@ -188,11 +193,28 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
     };
   }, [business?.id]);
 
-  const handleUpgradeRequest = async (requestedPackageId: string) => {
-    if (!supabase || !business) return;
+  const handleUpgradeRequest = async () => {
+    if (!supabase || !business || !pendingPackageId || !upgradePassword) return;
     
     setIsSubmittingUpgrade(true);
+    setUpgradePasswordError('');
     try {
+      // Step 1: Verify Password
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error('User email not found');
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: upgradePassword
+      });
+
+      if (authError) {
+        setUpgradePasswordError('Wrong password, please input password to continue');
+        setIsSubmittingUpgrade(false);
+        return;
+      }
+
+      // Step 2: Upload Payment Proof
       let paymentProofUrl = '';
       
       if (upgradePaymentProof) {
@@ -209,13 +231,14 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
         }
       }
 
+      // Step 3: Insert Upgrade Request
       const { error } = await supabase
         .from('package_upgrade_requests')
         .insert([{
           business_id: business.id,
           business_name: business.business_name,
           current_package: business.package_id,
-          requested_package: requestedPackageId,
+          requested_package: pendingPackageId,
           status: 'pending',
           payment_proof_url: paymentProofUrl
         }]);
@@ -225,11 +248,25 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
       alert('Upgrade request submitted successfully! Our admin team will review it shortly.');
       setIsUpgradeModalOpen(false);
       setUpgradePaymentProof(null);
+      setUpgradeStep(1);
+      setUpgradePassword('');
+      setPendingPackageId(null);
     } catch (error) {
       console.error('Error submitting upgrade request:', error);
       alert('Failed to submit upgrade request. Please try again.');
     } finally {
       setIsSubmittingUpgrade(false);
+    }
+  };
+
+  const handleSelectPackage = (packageId: string) => {
+    setPendingPackageId(packageId);
+    setUpgradeStep(2);
+  };
+
+  const handleUploadComplete = () => {
+    if (upgradePaymentProof) {
+      setUpgradeStep(3);
     }
   };
 
@@ -296,9 +333,9 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
       ]);
       setListings([{ id: 'l1', business_id: '1', category: 'Luxury Safari' }, { id: 'l2', business_id: '1', category: 'Photography' }]);
       setAllBusinesses([sampleBiz, { ...sampleBiz, id: '2', business_name: 'Chobe Cruises', category: 'Car Rental' }]);
-      setCurrentPackage({ id: 'standard', name: 'Standard', features: { photos_allowed: 15, videos_allowed: 3, promotions_allowed: 2, analytics: true } });
+      setCurrentPackage({ id: 'basic', name: 'Basic', features: { photos_allowed: 1, videos_allowed: 0, promotions_allowed: 0, analytics: false } });
       setPackages([
-        { id: 'standard', name: 'Standard', price: '0', features: { photos_allowed: 15, videos_allowed: 3, promotions_allowed: 2, analytics: false } },
+        { id: 'basic', name: 'Basic', price: '0', features: { photos_allowed: 1, videos_allowed: 0, promotions_allowed: 0, analytics: false } },
         { id: 'professional', name: 'Professional', price: '1500', features: { photos_allowed: 50, videos_allowed: 10, promotions_allowed: 5, analytics: true, priority_listing: true } },
         { id: 'enterprise', name: 'Enterprise', price: '3500', features: { photos_allowed: -1, videos_allowed: -1, promotions_allowed: -1, analytics: true, priority_listing: true } }
       ]);
@@ -359,7 +396,11 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
         setAnalytics(analyticsRes.data || []);
         setLocations(locationsRes.data || []);
         setListings(listingsRes.data || []);
-        setCurrentPackage(packageRes.data || null);
+        setCurrentPackage(packageRes.data || {
+          id: 'basic',
+          name: 'Basic',
+          features: { photos_allowed: 1, videos_allowed: 0, promotions_allowed: 0, analytics: false }
+        });
         setPackages(allPackagesRes.data || []);
         setPaymentMethods(paymentMethodsRes.data || []);
       }
@@ -1423,117 +1464,184 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
                   </div>
                   <button onClick={() => setIsUpgradeModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400"><XCircle className="w-6 h-6" /></button>
                 </div>                <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-4">
-                  <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white space-y-6">
-                    <h3 className="text-xl font-black flex items-center gap-2">
-                       <Info className="w-6 h-6 text-emerald-500" />
-                       Payment Options
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4">
-                       {paymentMethods.map(method => (
-                         <div key={method.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-emerald-500/50 transition-all group">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">{method.name}</span>
-                              <span className="text-[10px] font-bold text-slate-500">Fast Verification</span>
-                            </div>
-                            <p className="text-lg font-black font-mono tracking-wider">{method.account_number}</p>
-                            {method.instructions && <p className="text-[10px] text-slate-400 mt-2 italic">{method.instructions}</p>}
-                         </div>
-                       ))}
-                       {paymentMethods.length === 0 && (
-                         <p className="text-xs text-slate-500 italic">Loading payment methods...</p>
-                       )}
+                  {upgradeStep === 1 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-right-4">
+                      {packages.map((p) => {
+                        const features = p.features || {};
+                        const isActive = currentPackage?.id === p.id;
+                        return (
+                        <div key={p.id} className={cn(
+                          "p-8 rounded-[2.5rem] border-2 transition-all cursor-pointer group flex flex-col h-full",
+                          isActive ? "border-emerald-600 bg-emerald-50/30" : "border-slate-100 hover:border-indigo-600"
+                        )}>
+                          <h4 className="text-xl font-black text-slate-900 mb-1">{p.name}</h4>
+                          <p className="text-indigo-600 font-black text-2xl mb-6">P{p.price}/mo</p>
+                          <ul className="space-y-4 mb-8 flex-1">
+                            <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              {features.photos_allowed === -1 ? 'Unlimited' : features.photos_allowed} Photos
+                            </li>
+                            <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              {features.videos_allowed === -1 ? 'Unlimited' : features.videos_allowed} Videos
+                            </li>
+                            <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              {features.promotions_allowed === -1 ? 'Unlimited' : features.promotions_allowed} Promotions
+                            </li>
+                          </ul>
+                          <button 
+                            disabled={isActive}
+                            onClick={() => handleSelectPackage(p.id)}
+                            className={cn(
+                              "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all",
+                              isActive ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-emerald-600"
+                            )}
+                          >
+                            {isActive ? 'Current Plan' : 'Select Plan'}
+                          </button>
+                        </div>
+                        );
+                      })}
                     </div>
-                  </div>
+                  )}
 
-                  <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
-                    <h3 className="font-bold text-indigo-900 mb-4 flex items-center gap-2">
-                       <FileText className="w-5 h-5" />
-                       Standard Step: Payment Confirmation
-                    </h3>
-                    <p className="text-sm text-indigo-700 mb-6">
-                      Upload your proof of payment to authorize the package upgrade.
-                    </p>
-                    <input 
-                       type="file" 
-                       className="hidden" 
-                       ref={paymentProofRef}
-                       onChange={(e) => {
-                         if (e.target.files?.[0]) {
-                           setUpgradePaymentProof(e.target.files[0]);
-                         }
-                       }}
-                    />
-                    <button 
-                       onClick={() => paymentProofRef.current?.click()}
-                       className={cn(
-                         "w-full py-4 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all group",
-                         upgradePaymentProof ? "border-emerald-600 bg-emerald-50" : "border-indigo-200 bg-white hover:bg-indigo-100"
-                       )}
-                    >
-                       {upgradePaymentProof ? (
-                         <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                       ) : (
-                         <Upload className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
-                       )}
-                       <span className={cn(
-                         "text-xs font-black uppercase mt-2",
-                         upgradePaymentProof ? "text-emerald-700" : "text-indigo-600"
-                       )}>
-                         {upgradePaymentProof ? upgradePaymentProof.name : 'Attach Receipt / Slip'}
-                       </span>
-                    </button>
-                  </div>
+                  {upgradeStep === 2 && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                      <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white space-y-6">
+                        <h3 className="text-xl font-black flex items-center gap-2">
+                           <Info className="w-6 h-6 text-emerald-500" />
+                           Payment Options
+                        </h3>
+                        <div className="grid grid-cols-1 gap-4">
+                           {paymentMethods.map(method => (
+                             <div key={method.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-emerald-500/50 transition-all group">
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">{method.name}</span>
+                                  <span className="text-[10px] font-bold text-slate-500">Fast Verification</span>
+                                </div>
+                                <p className="text-lg font-black font-mono tracking-wider">{method.account_number}</p>
+                             </div>
+                           ))}
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {packages.map((p) => {
-                    const features = p.features || {};
-                    const isActive = currentPackage?.id === p.id;
-                    return (
-                    <div key={p.id} className={cn(
-                      "p-8 rounded-[2.5rem] border-2 transition-all cursor-pointer group flex flex-col h-full",
-                      isActive ? "border-emerald-600 bg-emerald-50/30" : "border-slate-100 hover:border-indigo-600"
-                    )}>
-                      <h4 className="text-xl font-black text-slate-900 mb-1">{p.name}</h4>
-                      <p className="text-indigo-600 font-black text-2xl mb-6">P{p.price}/mo</p>
-                      <ul className="space-y-4 mb-8 flex-1">
-                        <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          {features.photos_allowed === -1 ? 'Unlimited' : features.photos_allowed} Photos
-                        </li>
-                        <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          {features.videos_allowed === -1 ? 'Unlimited' : features.videos_allowed} Videos
-                        </li>
-                        <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          {features.promotions_allowed === -1 ? 'Unlimited' : features.promotions_allowed} Promotions
-                        </li>
-                        <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          Analytics {features.analytics ? 'Enabled' : 'Disabled'}
-                        </li>
-                        {features.priority_listing && (
-                          <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            Priority Listing
-                          </li>
-                        )}
-                      </ul>
-                      <button 
-                        disabled={isActive || isSubmittingUpgrade || !upgradePaymentProof}
-                        onClick={() => handleUpgradeRequest(p.id)}
-                        className={cn(
-                          "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all",
-                          isActive ? "bg-slate-100 text-slate-400 cursor-not-allowed" : 
-                          (!upgradePaymentProof ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-emerald-600")
-                        )}
-                      >
-                        {isActive ? 'Current Plan' : (isSubmittingUpgrade ? 'Submitting...' : 'Select Plan')}
-                      </button>
+                      <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                        <h3 className="font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                           <FileText className="w-5 h-5" />
+                           Payment Confirmation
+                        </h3>
+                        <p className="text-sm text-indigo-700 mb-6">
+                          Upload your proof of payment to authorize the package upgrade.
+                        </p>
+                        <input 
+                           type="file" 
+                           className="hidden" 
+                           ref={paymentProofRef}
+                           onChange={(e) => {
+                             if (e.target.files?.[0]) {
+                               setUpgradePaymentProof(e.target.files[0]);
+                             }
+                           }}
+                        />
+                        <button 
+                           onClick={() => paymentProofRef.current?.click()}
+                           className={cn(
+                             "w-full py-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all group",
+                             upgradePaymentProof ? "border-emerald-600 bg-emerald-50" : "border-indigo-200 bg-white hover:bg-indigo-100"
+                           )}
+                        >
+                           {upgradePaymentProof ? (
+                             <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                           ) : (
+                             <Upload className="w-8 h-8 text-indigo-400 group-hover:scale-110 transition-transform" />
+                           )}
+                           <span className={cn(
+                             "text-xs font-black uppercase mt-4",
+                             upgradePaymentProof ? "text-emerald-700" : "text-indigo-600"
+                           )}>
+                             {upgradePaymentProof ? upgradePaymentProof.name : 'Attach Receipt / Slip'}
+                           </span>
+                        </button>
+                      </div>
+
+                      <div className="flex gap-4 pt-4">
+                        <button 
+                          onClick={() => setUpgradeStep(1)}
+                          className="w-14 h-14 border-2 border-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:border-slate-300 hover:text-slate-600 transition-all"
+                        >
+                          <ArrowLeft className="w-5 h-5" />
+                        </button>
+                        <button 
+                          disabled={!upgradePaymentProof}
+                          onClick={handleUploadComplete}
+                          className={cn(
+                            "flex-1 py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-3",
+                            !upgradePaymentProof ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-emerald-600"
+                          )}
+                        >
+                          Continue to Security <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    );
-                  })}
-                  </div>
+                  )}
+
+                  {upgradeStep === 3 && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                      {/* ... password verification screen ... */}
+                      <div className="space-y-2">
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Verify Password</h3>
+                        <p className="text-slate-500 font-medium">Please confirm your current password to authorize this upgrade request.</p>
+                      </div>
+
+                      <div className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Current Password</label>
+                          <div className="relative">
+                            <Lock className="w-5 h-5 absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                            <input 
+                              required
+                              type="password"
+                              placeholder="••••••••"
+                              className={cn(
+                                "w-full bg-slate-100 border-none rounded-2xl p-5 pl-14 text-sm font-black focus:ring-2 transition-all",
+                                upgradePasswordError ? "focus:ring-rose-500 ring-2 ring-rose-200" : "focus:ring-indigo-600"
+                              )}
+                              value={upgradePassword}
+                              onChange={e => {
+                                setUpgradePassword(e.target.value);
+                                setUpgradePasswordError('');
+                              }}
+                            />
+                          </div>
+                          {upgradePasswordError && (
+                            <p className="text-rose-500 text-xs font-bold mt-2 ml-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> {upgradePasswordError}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-4 pt-6">
+                           <button 
+                             onClick={() => setUpgradeStep(2)}
+                             className="w-14 h-14 border-2 border-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:border-slate-300 hover:text-slate-600 transition-all"
+                           >
+                             <ArrowLeft className="w-5 h-5" />
+                           </button>
+                           <button 
+                              onClick={handleUpgradeRequest}
+                              disabled={isSubmittingUpgrade || !upgradePassword}
+                              className={cn(
+                                "flex-1 py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-3",
+                                isSubmittingUpgrade ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-emerald-600"
+                              )}
+                           >
+                              {isSubmittingUpgrade ? <Activity className="w-4 h-4 animate-spin" /> : <>Submit Upgrade Request <CheckCircle2 className="w-4 h-4" /></>}
+                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-8 p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4">

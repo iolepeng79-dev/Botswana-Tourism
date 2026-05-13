@@ -34,7 +34,7 @@ export interface Business {
   manual_address?: string;
   latitude?: string;
   longitude?: string;
-  package_id: 'free' | 'professional' | 'enterprise';
+  package_id: 'basic' | 'professional' | 'enterprise';
   owner_id: string;
   owner_name?: string;
   profile_picture?: string;
@@ -198,14 +198,14 @@ export interface Listing {
 }
 
 export interface Package {
-  id: 'free' | 'professional' | 'enterprise' | 'standard'; // Added standard for backward compat
+  id: 'basic' | 'professional' | 'enterprise';
   name: string;
   price?: string;
   features: any;
 }
 
 export const TIER_LIMITS = {
-  free: {
+  basic: {
     promotions: 0,
     pictures: 1,
     videos: 0,
