@@ -105,6 +105,20 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
   useEffect(() => {
     fetchAdminData();
+    
+    if (!supabase) return;
+
+    // Real-time subscriptions for admin lists
+    const channels = [
+      supabase.channel('public:businesses_admin').on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, () => fetchAdminData()).subscribe(),
+      supabase.channel('public:bookings_admin').on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchAdminData()).subscribe(),
+      supabase.channel('public:upgrades_admin').on('postgres_changes', { event: '*', schema: 'public', table: 'package_upgrade_requests' }, () => fetchAdminData()).subscribe(),
+      supabase.channel('public:logs_admin').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => fetchAdminData()).subscribe(),
+    ];
+
+    return () => {
+      channels.forEach(ch => supabase.removeChannel(ch));
+    };
   }, []);
 
   async function fetchAdminData() {

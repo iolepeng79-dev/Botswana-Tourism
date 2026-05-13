@@ -179,17 +179,14 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
   useEffect(() => {
     if (!supabase || !business) return;
 
-    const bookingSub = supabase
-      .channel('bookings-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `business_id=eq.${business.id}` }, 
-        (payload) => {
-          fetchDashboardData(); // Refresh on any change
-        }
-      )
-      .subscribe();
+    const channels = [
+      supabase.channel('bookings-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `business_id=eq.${business.id}` }, () => fetchDashboardData()).subscribe(),
+      supabase.channel('reviews-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `business_id=eq.${business.id}` }, () => fetchDashboardData()).subscribe(),
+      supabase.channel('business-self-changes').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'businesses', filter: `id=eq.${business.id}` }, () => fetchDashboardData()).subscribe(),
+    ];
 
     return () => {
-      supabase.removeChannel(bookingSub);
+      channels.forEach(ch => supabase.removeChannel(ch));
     };
   }, [business?.id]);
 

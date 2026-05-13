@@ -10,6 +10,8 @@ import TouristDashboard from './components/TouristDashboard';
 import OnboardingForm from './components/OnboardingForm';
 import AuthView from './components/AuthView';
 import NewsPopup from './components/NewsPopup';
+import ErrorBoundary from './components/ErrorBoundary';
+import NotificationManager from './components/NotificationManager';
 import { UserRole, Profile } from './types';
 import { User, Shield, Briefcase, ChevronUp, LogOut } from 'lucide-react';
 import { cn } from './lib/utils';
@@ -41,19 +43,23 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 relative">
-      {/* Role Rendering */}
-      {role === 'Business' && <BusinessDashboard profile={user} />}
-      {role === 'Admin' && <AdminDashboard profile={user} />}
-      {(role === 'Tourist' || role === 'Guest') && (
-        <TouristDashboard 
-          profile={user} 
-          onAuthRequired={() => setIsAuthOpen(true)} 
-        />
-      )}
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-50 relative">
+        {/* Role Rendering */}
+        {role === 'Business' && <BusinessDashboard profile={user} />}
+        {role === 'Admin' && <AdminDashboard profile={user} />}
+        {(role === 'Tourist' || role === 'Guest') && (
+          <TouristDashboard 
+            profile={user} 
+            onAuthRequired={() => setIsAuthOpen(true)} 
+          />
+        )}
 
-      {/* Global News Popups */}
-      <NewsPopup />
+        {/* Real-time Notifications */}
+        <NotificationManager currentUser={user} role={role} />
+
+        {/* Global News Popups */}
+        <NewsPopup />
 
       {/* Auth Overlay */}
       {isAuthOpen && (
@@ -117,5 +123,6 @@ export default function App() {
         </button>
       </div>
     </div>
-  );
+  </ErrorBoundary>
+);
 }

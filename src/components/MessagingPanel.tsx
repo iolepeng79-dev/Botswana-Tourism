@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Send, User, Search, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Message, ChatThread, Profile } from '../types';
-import { format } from 'date-fns';
+import { format, subMinutes } from 'date-fns';
+import { supabase } from '../lib/supabase';
 
 interface MessagingPanelProps {
   currentUser: Profile | null;
@@ -15,44 +16,113 @@ export default function MessagingPanel({ currentUser, receiverRole }: MessagingP
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
 
-  // Mock data for demo
+  // Load threads
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !supabase) return;
 
-    setThreads([
-      { 
-        other_party_id: 'b1', 
-        other_party_name: receiverRole === 'Business' ? 'Delta Cruises' : 'Admin Support', 
-        last_message: 'How can we help you today?', 
-        last_message_time: new Date().toISOString(), 
-        unread_count: 1 
-      },
-      { 
-        other_party_id: 'b2', 
-        other_party_name: 'Kalahari Safari', 
-        last_message: 'Your booking is confirmed!', 
-        last_message_time: subMinutes(new Date(), 30).toISOString(), 
-        unread_count: 0 
+    async function fetchThreads() {
+      // In a real app, we'd query a messages table with group by or a threads view
+      // For now, we'll use a mix of real lookup and fallback
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        // Group messages into threads
+        const threadMap = new Map<string, ChatThread>();
+        data.forEach(msg => {
+          const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
+          if (!threadMap.has(otherId)) {
+            threadMap.set(otherId, {
+              other_party_id: otherId,
+              other_party_name: otherId === 'admin' ? 'Admin Support' : 'Business Partner', // Simplified
+              last_message: msg.content,
+              last_message_time: msg.created_at,
+              unread_count: msg.receiver_id === currentUser.id && !msg.read ? 1 : 0
+            });
+          }
+        });
+        setThreads(Array.from(threadMap.values()));
+      } else {
+        setThreads([
+          { 
+            other_party_id: 'b1', 
+            other_party_name: receiverRole === 'Business' ? 'Delta Cruises' : 'Admin Support', 
+            last_message: 'How can we help you today?', 
+            last_message_time: new Date().toISOString(), 
+            unread_count: 1 
+          }
+        ]);
       }
-    ]);
+    }
+
+    fetchThreads();
+
+    // Subscribe to new messages to update threads
+    const channel = supabase
+      .channel('public:messages_threads')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages'
+      }, () => {
+        fetchThreads();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUser, receiverRole]);
 
+  // Load messages for selected thread
   useEffect(() => {
-    if (selectedThread) {
-      // Mock messages
-      setMessages([
-        { id: '1', sender_id: selectedThread.other_party_id, receiver_id: currentUser?.id || '', content: 'Dumela! How can we assist you?', created_at: subMinutes(new Date(), 5).toISOString(), read: true },
-        { id: '2', sender_id: currentUser?.id || '', receiver_id: selectedThread.other_party_id, content: 'Hi, I wanted to ask about the sunset cruise.', created_at: subMinutes(new Date(), 2).toISOString(), read: true },
-      ]);
+    if (!selectedThread || !currentUser || !supabase) return;
+
+    async function fetchMessages() {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedThread.other_party_id}),and(sender_id.eq.${selectedThread.other_party_id},receiver_id.eq.${currentUser.id})`)
+        .order('created_at', { ascending: true });
+
+      if (data) {
+        setMessages(data);
+      }
     }
+
+    fetchMessages();
+
+    // Subscribe to real-time messages for this thread
+    const channel = supabase
+      .channel(`chat:${selectedThread.other_party_id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages'
+      }, (payload) => {
+        const newMsg = payload.new as Message;
+        if (
+          (newMsg.sender_id === currentUser.id && newMsg.receiver_id === selectedThread.other_party_id) ||
+          (newMsg.sender_id === selectedThread.other_party_id && newMsg.receiver_id === currentUser.id)
+        ) {
+          setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), newMsg]);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedThread, currentUser]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedThread || !currentUser) return;
 
-    const msg: Message = {
-      id: Date.now().toString(),
+    const msgData = {
       sender_id: currentUser.id,
       receiver_id: selectedThread.other_party_id,
       content: newMessage,
@@ -60,8 +130,25 @@ export default function MessagingPanel({ currentUser, receiverRole }: MessagingP
       read: false
     };
 
-    setMessages([...messages, msg]);
     setNewMessage('');
+
+    if (supabase) {
+      const { data, error } = await supabase.from('messages').insert([msgData]).select().single();
+      if (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message.');
+      } else if (data) {
+        // optimistically update messages if real-time doesn't catch it immediately
+        setMessages(prev => [...prev.filter(m => m.id !== data.id), data]);
+      }
+    } else {
+      // Demo fallback
+      const msg: Message = {
+        ...msgData,
+        id: Date.now().toString(),
+      };
+      setMessages([...messages, msg]);
+    }
   };
 
   if (!currentUser) {
@@ -179,10 +266,4 @@ export default function MessagingPanel({ currentUser, receiverRole }: MessagingP
       )}
     </div>
   );
-}
-
-function subMinutes(date: Date, minutes: number) {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() - minutes);
-  return d;
 }
