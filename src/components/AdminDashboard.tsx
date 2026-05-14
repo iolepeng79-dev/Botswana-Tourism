@@ -13,6 +13,7 @@ import {
   FileText,
   Settings,
   MessageSquare,
+  Bell,
   Search,
   Filter,
   ArrowRight,
@@ -101,7 +102,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [upgradeRequests, setUpgradeRequests] = useState<PackageUpgradeRequest[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'verification' | 'upgrades' | 'analytics' | 'messages' | 'logs'>('overview');
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'verification' | 'upgrades' | 'notifications' | 'analytics' | 'messages' | 'logs'>('overview');
 
   useEffect(() => {
     fetchAdminData();
@@ -114,6 +116,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       supabase.channel('public:bookings_admin').on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchAdminData()).subscribe(),
       supabase.channel('public:upgrades_admin').on('postgres_changes', { event: '*', schema: 'public', table: 'package_upgrade_requests' }, () => fetchAdminData()).subscribe(),
       supabase.channel('public:logs_admin').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => fetchAdminData()).subscribe(),
+      supabase.channel('public:notifications_admin').on('postgres_changes', { event: '*', schema: 'public', table: 'admin_notifications' }, () => fetchAdminData()).subscribe(),
     ];
 
     return () => {
@@ -155,17 +158,19 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
     try {
       setLoading(true);
-      const [bizRes, bookingsRes, upgradeRes, logsRes] = await Promise.all([
-        supabase.from('businesses').select('*'),
+      const [bizRes, bookingsRes, upgradeRes, logsRes, notifRes] = await Promise.all([
+        supabase.from('businesses').select('*').order('created_at', { ascending: false }),
         supabase.from('bookings').select('*'),
         supabase.from('package_upgrade_requests').select('*'),
-        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50)
+        supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50),
+        supabase.from('admin_notifications').select('*').order('created_at', { ascending: false })
       ]);
 
       setBusinesses(bizRes.data || []);
       setBookings(bookingsRes.data || []);
       setUpgradeRequests(upgradeRes.data || []);
       setAuditLogs(logsRes.data || []);
+      setNotifications(notifRes.data || []);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -173,7 +178,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
-  async function handleStatusUpdate(bizId: string, status: 'Approved' | 'Rejected') {
+  async function handleStatusUpdate(bizId: string, status: 'Approved' | 'Rejected', admin_comments: string = '') {
     if (!supabase) {
       setBusinesses(prev => prev.map(b => b.id === bizId ? { ...b, status } : b));
       return;
@@ -182,7 +187,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     try {
       const { error } = await supabase
         .from('businesses')
-        .update({ status })
+        .update({ 
+          status,
+          admin_comments 
+        })
         .eq('id', bizId);
       
       if (error) throw error;
@@ -190,9 +198,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       // Log the action
       await supabase.from('audit_logs').insert([{
         action: `${status} Business`,
-        details: `Business ${bizId} ${status.toLowerCase()} by Admin`,
+        details: `Business ${bizId} ${status.toLowerCase()} by Admin. Comments: ${admin_comments}`,
         timestamp: new Date().toISOString(),
-        admin_id: profile?.id || 'admin'
+        admin_id: profile?.id || 'admin',
+        user_id: businesses.find(b => b.id === bizId)?.owner_id
       }]);
 
       await fetchAdminData();
@@ -308,14 +317,15 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
       <main className="max-w-[1600px] mx-auto px-10 py-12">
         {/* Navigation Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-16">
           {[
-            { id: 'overview', label: 'Platform Summary', icon: Activity },
-            { id: 'verification', label: 'Verify Businesses', icon: UserCheck, count: stats.pending },
-            { id: 'upgrades', label: 'Package Requests', icon: Zap, count: upgradeRequests.length },
-            { id: 'analytics', label: 'Global Insights', icon: BarChart3 },
-            { id: 'messages', label: 'Global Inbox', icon: MessageSquare },
-            { id: 'logs', label: 'System Logs', icon: FileText }
+            { id: 'overview', label: 'Summary', icon: Activity },
+            { id: 'verification', label: 'Verify', icon: UserCheck, count: stats.pending },
+            { id: 'upgrades', label: 'Upgrades', icon: Zap, count: upgradeRequests.length },
+            { id: 'notifications', label: 'Inbox', icon: Bell, count: notifications.filter(n => !n.read).length },
+            { id: 'analytics', label: 'Insights', icon: BarChart3 },
+            { id: 'messages', label: 'Chat', icon: MessageSquare },
+            { id: 'logs', label: 'Logs', icon: FileText }
           ].map(tab => (
             <button
               key={tab.id}
@@ -536,6 +546,67 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                        </div>
                     </div>
                   ))}
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4">
+               <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-4xl font-black text-slate-900 tracking-tight">Admin Notifications</h2>
+                  <button 
+                    onClick={async () => {
+                      if (!supabase) return;
+                      await supabase.from('admin_notifications').update({ read: true }).eq('read', false);
+                      await fetchAdminData();
+                    }}
+                    className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800"
+                  >
+                    Mark All as Read
+                  </button>
+               </div>
+
+               <div className="space-y-4">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+                       <MessageSquare className="w-16 h-16 text-slate-100 mx-auto mb-4" />
+                       <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No notifications yet.</p>
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div key={n.id} className={cn(
+                        "p-6 rounded-[2rem] border transition-all flex items-center justify-between gap-6",
+                        n.read ? "bg-white border-slate-50 opacity-60" : "bg-white border-indigo-100 shadow-lg shadow-indigo-100/20"
+                      )}>
+                        <div className="flex items-center gap-6">
+                           <div className={cn(
+                             "w-12 h-12 rounded-2xl flex items-center justify-center",
+                             n.type === 'business_registration' ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"
+                           )}>
+                              {n.type === 'business_registration' ? <Briefcase className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+                           </div>
+                           <div>
+                              <div className="flex items-center gap-3 mb-1">
+                                <h4 className="font-black text-slate-900">{n.title}</h4>
+                                {!n.read && <span className="w-2 h-2 bg-indigo-500 rounded-full" />}
+                              </div>
+                              <p className="text-sm text-slate-500 font-medium">{n.message}</p>
+                              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-2">
+                                {format(new Date(n.created_at), 'MMM d, HH:mm')}
+                              </p>
+                           </div>
+                        </div>
+                        {n.type === 'business_registration' && (
+                          <button 
+                            onClick={() => setActiveTab('verification')}
+                            className="px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
+                          >
+                            Review Now
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
                </div>
             </div>
           )}

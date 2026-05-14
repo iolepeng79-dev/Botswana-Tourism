@@ -156,6 +156,16 @@ CREATE TABLE IF NOT EXISTS public.messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Admin Notifications
+CREATE TABLE IF NOT EXISTS public.admin_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type TEXT,
+    title TEXT,
+    message TEXT,
+    read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Package Upgrade Requests
 CREATE TABLE IF NOT EXISTS public.package_upgrade_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -320,6 +330,35 @@ BEGIN
   END IF;
 END $$;
 
+-- Admin Notification Trigger for New Businesses
+CREATE OR REPLACE FUNCTION public.notify_admin_new_business()
+RETURNS trigger AS $$
+BEGIN
+    INSERT INTO public.admin_notifications (
+        type,
+        title,
+        message
+    )
+    VALUES (
+        'business_registration',
+        'New Business Registration',
+        'Business "' || NEW.business_name || '" submitted for approval.'
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_notify_admin_new_business') THEN
+    CREATE TRIGGER trg_notify_admin_new_business
+      AFTER INSERT ON public.businesses
+      FOR EACH ROW
+      WHEN (NEW.status = 'Pending')
+      EXECUTE FUNCTION public.notify_admin_new_business();
+  END IF;
+END $$;
+
 -- Profiles update on Auth User change
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -338,3 +377,24 @@ BEGIN
       FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
   END IF;
 END $$;
+
+-- RLS Refinement
+ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can view approved businesses" 
+ON public.businesses FOR SELECT 
+USING (status = 'Approved');
+
+CREATE POLICY "Owners can manage own business" 
+ON public.businesses FOR ALL 
+USING (auth.uid() = owner_id);
+
+CREATE POLICY "Admins manage all businesses"
+ON public.businesses FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.role = 'Admin'
+  )
+);
