@@ -211,22 +211,37 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
         submissionData.region_id = '';
       }
 
-      // Simulation of sending to admin for approval
+      // Real registration and sending to admin for approval
       if (supabase) {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          // 1. Register the user
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                full_name: formData.business_name, // Business name as full_name for profile
+                role: 'Business'
+              }
+            }
+          });
+
+          if (authError) throw authError;
+          const user = authData.user;
+          if (!user) throw new Error("Could not create user");
           
           let paymentProofUrl = '';
           let btoOpsUrl = '';
 
-          // Actual file upload logic
+          // 2. Upload files
           if (formData.payment_proof) {
             const file = formData.payment_proof;
             const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const { data: uploadData } = await supabase.storage
+            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
               .from('verification-docs')
               .upload(`payments/${fileName}`, file);
+            if (uploadError) console.warn("Payment proof upload failed:", uploadError);
             if (uploadData) {
               const { data: { publicUrl } } = supabase.storage.from('verification-docs').getPublicUrl(uploadData.path);
               paymentProofUrl = publicUrl;
@@ -236,21 +251,24 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
           if (formData.bto_ops) {
             const file = formData.bto_ops;
             const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const { data: uploadData } = await supabase.storage
+            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
               .from('verification-docs')
               .upload(`licenses/${fileName}`, file);
+            if (uploadError) console.warn("BTO license upload failed:", uploadError);
             if (uploadData) {
               const { data: { publicUrl } } = supabase.storage.from('verification-docs').getPublicUrl(uploadData.path);
               btoOpsUrl = publicUrl;
             }
           }
 
-          await supabase.from('businesses').insert([{
+          // 3. Insert Business Record
+          const { error: insertError } = await supabase.from('businesses').insert([{
             business_name: formData.business_name,
             category: formData.category,
             email: formData.email,
-            owner_id: user?.id || 'pending',
+            owner_id: user.id,
+            owner_name: formData.full_name || formData.business_name,
             status: 'Pending',
             location_id: submissionData.location_id,
             location_name: formData.location || formData.region || formData.settlement || formData.district,
@@ -258,24 +276,69 @@ export default function OnboardingForm({ onComplete, onCancel, initialRole }: On
             office_line: formData.office_line,
             package_id: formData.package_id,
             payment_proof: paymentProofUrl,
-            bto_ops_license: btoOpsUrl,
-            district: formData.district,
-            settlement: formData.settlement,
-            region: formData.region,
+            documents: btoOpsUrl ? [btoOpsUrl] : [],
+            district_name: formData.district,
+            settlement_name: formData.settlement,
+            region_name: formData.region,
+            area_name: formData.region || formData.settlement,
             manual_address: formData.manual_address,
             latitude: formData.latitude,
             longitude: formData.longitude,
-            verified_location: formData.verified_location
+            verified_location: formData.verified_location,
+            created_at: new Date().toISOString()
           }]);
-        } catch (err) {
+
+          if (insertError) throw insertError;
+
+        } catch (err: any) {
           console.error("Submission error:", err);
+          alert(err.message || "An error occurred during registration");
+          setLoading(false);
+          return;
         }
       }
       
       setLoading(false);
       setIsSubmitted(true);
     } else {
-      onComplete(submissionData);
+      // Tourist Registration
+      setLoading(true);
+      try {
+        if (supabase) {
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                full_name: formData.full_name,
+                role: 'Tourist'
+              }
+            }
+          });
+
+          if (authError) throw authError;
+
+          // Note: Profile creation is handled by DB trigger in full_schema.sql
+          // But we can update additional fields like phone if needed
+          if (authData.user && formData.phone) {
+             const { error: profileError } = await supabase
+               .from('profiles')
+               .update({ 
+                 phone: formData.phone,
+                 country: formData.country 
+               })
+               .eq('id', authData.user.id);
+             if (profileError) console.warn("Failed to update profile phone:", profileError);
+          }
+        }
+        
+        onComplete(submissionData);
+      } catch (err: any) {
+        console.error("Tourist registration error:", err);
+        alert(err.message || "An error occurred during registration");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

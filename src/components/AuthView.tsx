@@ -25,56 +25,48 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
     setLoading(true);
     setError(null);
 
-    // Special handling for hardcoded Admin
-    if (loginRole === 'Admin' && email === 'admintourbots@gmail.com' && password === 'Admin@72468080') {
-      setTimeout(() => {
-        onLogin('Admin');
-        setLoading(false);
-      }, 500);
-      return;
-    }
+    try {
+      if (!supabase) throw new Error("Supabase internal error");
 
-    // Simulation of login check
-    if (loginRole === 'Business') {
-      // Simulate checking business status in Supabase
-      if (supabase) {
-        try {
-          const { data, error: fetchError } = await supabase
-            .from('businesses')
-            .select('status')
-            .eq('email', email)
-            .single();
-          
-          if (data && data.status !== 'Approved') {
-             setError("Your business is currently pending approval. Please come back after 2 minutes.");
-             setLoading(false);
-             return;
-          }
-          
-          if (!data && email !== 'business@example.bw') {
-             // For demo, if not my mock business and not in DB
-             setError("Account not found or pending approval.");
-             setLoading(false);
-             return;
-          }
-        } catch (err) {
-          console.error("Login verification error:", err);
-        }
-      } else {
-        // Fallback for no supabase (mock check)
-        if (email.includes('pending')) {
-          setError("Your business is currently pending approval. Please come back after 2 minutes.");
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) throw authError;
+
+      // Verify business status if role is Business
+      if (loginRole === 'Business') {
+        const { data: bizData, error: bizError } = await supabase
+          .from('businesses')
+          .select('status')
+          .eq('owner_id', data.user.id)
+          .single();
+        
+        if (bizError) {
+          // If no business record found for this user, they might not be fully onboarded
+          setError("Business account details not found. Please register as a business.");
           setLoading(false);
+          await supabase.auth.signOut();
           return;
         }
-      }
-    }
 
-    // Success
-    setTimeout(() => {
+        if (bizData.status !== 'Approved') {
+           setError(`Your business is currently ${bizData.status.toLowerCase()}. Please check back later.`);
+           setLoading(false);
+           await supabase.auth.signOut();
+           return;
+        }
+      }
+
+      // Successful login will be detected by App.tsx through auth state change
       onLogin(loginRole);
+    } catch (err: any) {
+      console.error("Login verification error:", err);
+      setError(err.message || "Invalid login credentials");
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleResetPassword = (e: React.FormEvent) => {

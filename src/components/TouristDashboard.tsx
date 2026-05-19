@@ -182,57 +182,7 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
   }, []);
 
   async function fetchTouristData() {
-    if (!supabase) {
-      // Create comprehensive Mock Data for all categories
-      const mockBusinesses: Business[] = BUSINESS_CATEGORIES.flatMap((cat, catIdx) => 
-        Array.from({ length: 12 }).map((_, bIdx) => ({
-          id: `biz-${catIdx}-${bIdx}`,
-          business_name: `${cat} ${['Delta', 'Savuti', 'Chobe', 'Kalahari', 'Gabs'][bIdx % 5]}`,
-          category: cat,
-          status: 'Approved',
-          mini_bio: `Professional ${cat.toLowerCase()} services in the heart of Botswana. Trusted by thousands of travelers.`,
-          bio: `Welcome to our ${cat.toLowerCase()}! We have been operating in Botswana for over 10 years, providing top-tier services to both locals and international visitors. Our team is dedicated to your comfort and safety.`,
-          price_range: `BWP ${(Math.floor(Math.random() * 5) + 5) * 200}`,
-          location_name: ['Maun', 'Kasane', 'Gaborone', 'Francistown'][bIdx % 4],
-          package_id: 'enterprise',
-          email: 'contact@example.bw',
-          owner_id: 'o-1',
-          created_at: new Date().toISOString(),
-          media: [
-            { id: 'm1', type: 'image', url: `https://picsum.photos/seed/tour-${catIdx}-${bIdx}/1920/1080`, description: 'Beautiful view of our facility', created_at: new Date().toISOString() },
-            { id: 'm2', type: 'video', url: '', description: 'Promotional video', created_at: new Date().toISOString() }
-          ]
-        }))
-      );
-
-      const mockReviews: Review[] = mockBusinesses.flatMap(b => 
-        Array.from({ length: 3 }).map((_, i) => ({
-          id: `rv-${b.id}-${i}`,
-          business_id: b.id,
-          customer_id: 'u-1',
-          customer_name: ['Kabelo', 'Thabo', 'Sarah'][i],
-          rating: [5, 4, 5][i],
-          comment: 'Outstanding experience! The staff were incredible.',
-          created_at: subDays(new Date(), i * 10).toISOString()
-        }))
-      );
-
-      setBusinesses(mockBusinesses);
-      setAllReviews(mockReviews);
-      setPromotions([
-        { id: 'p1', business_id: mockBusinesses[0].id, business_name: mockBusinesses[0].business_name, title: 'Summer Explorer', type: 'Discount', start_date: new Date().toISOString(), expiry_date: format(subDays(new Date(), -30), 'yyyy-MM-dd'), active: true, created_at: new Date().toISOString() }
-      ]);
-      
-      if (profile) {
-        setBookings([
-          { id: 'bk1', business_id: mockBusinesses[0].id, business_name: mockBusinesses[0].business_name, listing_title: 'Adventure Pack', customer_id: profile.id, customer_name: profile.full_name, booking_date: format(subDays(new Date(), -5), 'yyyy-MM-dd'), duration: '2 Days', amount: 3500, status: 'confirmed', created_at: new Date().toISOString() },
-          { id: 'bk2', business_id: mockBusinesses[1].id, business_name: mockBusinesses[1].business_name, listing_title: 'Standard Safari', customer_id: profile.id, customer_name: profile.full_name, booking_date: format(subDays(new Date(), 10), 'yyyy-MM-dd'), duration: '1 Day', amount: 1500, status: 'completed', created_at: new Date().toISOString() }
-        ]);
-      }
-
-      setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
     try {
       setLoading(true);
@@ -240,7 +190,7 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
         supabase.from('businesses').select('*').eq('status', 'Approved'),
         supabase.from('reviews').select('*'),
         supabase.from('promotions').select('*').eq('active', true),
-        profile ? supabase.from('bookings').select('*').eq('customer_id', profile.id) : Promise.resolve({ data: [] })
+        profile ? supabase.from('bookings').select('*').eq('customer_id', profile.id) : Promise.resolve({ data: [], error: null })
       ]);
 
       setBusinesses(bizRes.data || []);

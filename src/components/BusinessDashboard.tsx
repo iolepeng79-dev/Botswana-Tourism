@@ -268,88 +268,13 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
   };
 
   async function fetchDashboardData() {
-    if (!supabase) {
-      // GENERATE SAMPLE DATA FOR PREVIEW
-      const sampleBiz: Business = {
-        id: '1',
-        business_name: 'Okavango Safaris',
-        status: 'Approved',
-        email: 'info@okavango.bw',
-        owner_id: 'user1',
-        bio: 'Premier luxury safari experiences in the heart of the Okavango Delta.',
-        whatsapp: '+267 71 234 567',
-        office_line: '+267 68 123 456',
-        package_id: 'professional',
-        category: 'Safari Camp',
-        media: [],
-        created_at: new Date().toISOString()
-      };
-      
-      const sampleBookings: Booking[] = Array.from({ length: 45 }).map((_, i) => ({
-        id: `bk-${i}`,
-        business_id: '1',
-        customer_id: `u-${i % 5}`,
-        customer_name: ['Kabelo M.', 'Sarah Jones', 'Thabo N.', 'Lerato S.', 'John Doe'][i % 5],
-        booking_date: subMonths(new Date(), i % 5).toISOString(),
-        duration: '3 Days',
-        amount: Math.floor(Math.random() * 5000) + 1500,
-        status: ['completed', 'confirmed', 'pending', 'cancelled'][i % 4] as any,
-        created_at: new Date().toISOString()
-      }));
-
-      const sampleReviews: Review[] = Array.from({ length: 12 }).map((_, i) => ({
-        id: `rv-${i}`,
-        business_id: '1',
-        customer_id: `u-${i % 5}`,
-        rating: [5, 4, 5, 3, 5][i % 5],
-        comment: 'Amazing experience! Highly recommended.',
-        created_at: new Date().toISOString()
-      }));
-
-      const samplePromos: Promotion[] = [
-        { id: 'p1', business_id: '1', title: 'Winter Special', type: 'Discount', start_date: '2026-05-01', expiry_date: '2026-08-31', active: true, created_at: new Date().toISOString() },
-        { id: 'p2', business_id: '1', title: 'Early Bird', type: 'Voucher', start_date: '2026-03-01', expiry_date: '2026-04-30', active: true, created_at: new Date().toISOString() }
-      ];
-
-      const sampleAnalytics: AnalyticsEvent[] = Array.from({ length: 200 }).map((_, i) => ({
-        id: `an-${i}`,
-        business_id: '1',
-        event_type: ['view', 'click', 'conversion'][i % 10 < 7 ? 0 : i % 10 < 9 ? 1 : 2] as any,
-        timestamp: new Date().toISOString()
-      }));
-
-      setBusiness(sampleBiz);
-      setBookings(sampleBookings);
-      setReviews(sampleReviews);
-      setPromotions(samplePromos);
-      setAnalytics(sampleAnalytics);
-      setLocations([
-        { id: '1', name: 'Maun', type: 'town', parent_id: null }, 
-        { id: '2', name: 'Kasane', type: 'town', parent_id: null }, 
-        { id: '3', name: 'Gaborone', type: 'city', parent_id: null }
-      ]);
-      setListings([{ id: 'l1', business_id: '1', category: 'Luxury Safari' }, { id: 'l2', business_id: '1', category: 'Photography' }]);
-      setAllBusinesses([sampleBiz, { ...sampleBiz, id: '2', business_name: 'Chobe Cruises', category: 'Car Rental' }]);
-      setCurrentPackage({ id: 'basic', name: 'Basic', features: { photos_allowed: 1, videos_allowed: 0, promotions_allowed: 0, analytics: false } });
-      setPackages([
-        { id: 'basic', name: 'Basic', price: '0', features: { photos_allowed: 1, videos_allowed: 0, promotions_allowed: 0, analytics: false } },
-        { id: 'professional', name: 'Professional', price: '1500', features: { photos_allowed: 50, videos_allowed: 10, promotions_allowed: 5, analytics: true, priority_listing: true } },
-        { id: 'enterprise', name: 'Enterprise', price: '3500', features: { photos_allowed: -1, videos_allowed: -1, promotions_allowed: -1, analytics: true, priority_listing: true } }
-      ]);
-      setPaymentMethods([
-        { id: '1', name: 'First National Bank (FNB)', account_number: '62849503928', instructions: 'Use business name as reference' },
-        { id: '2', name: 'Absa Botswana', account_number: '0192837465', instructions: 'Proof of payment to payments@tourbots.bw' }
-      ]);
-      setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
     try {
       setLoading(true);
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        // Fallback or show login
         setLoading(false);
         return;
       }
@@ -359,7 +284,12 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
         supabase.from('businesses').select('*').eq('status', 'Approved')
       ]);
 
-      if (bizRes.error) throw bizRes.error;
+      if (bizRes.error) {
+        console.error('Error fetching business:', bizRes.error);
+        setLoading(false);
+        return;
+      }
+
       const biz = bizRes.data;
       setBusiness(biz);
       setAllBusinesses(allBizRes.data || []);

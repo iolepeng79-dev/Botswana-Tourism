@@ -343,9 +343,9 @@ BEGIN
         message
     )
     VALUES (
-        'business_registration',
-        'New Business Registration',
-        'Business "' || NEW.business_name || '" submitted for approval.'
+        'business_verification',
+        'New Business Verification Request',
+        'Business "' || NEW.business_name || '" submitted onboarding for approval.'
     );
     RETURN NEW;
 END;

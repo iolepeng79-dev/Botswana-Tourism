@@ -125,43 +125,14 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   }, []);
 
   async function fetchAdminData() {
-    if (!supabase) {
-      // Mock data for Admin
-      const mockBiz: Business[] = [
-        { id: 'b1', business_name: 'Delta Cruises', status: 'Approved', category: 'Lodge', owner_id: 'o1', email: 'delta@info.bw', created_at: new Date().toISOString(), package_id: 'enterprise', location_name: 'Maun', media: [] },
-        { id: 'b2', business_name: 'Savuti Camp', status: 'Pending', category: 'Safari Camp', owner_id: 'o2', email: 'savuti@safari.bw', created_at: new Date().toISOString(), package_id: 'professional', location_name: 'Kasane', payment_proof: 'https://example.com/receipt.pdf', media: [] },
-        { id: 'b3', business_name: 'Gaborone Hotel', status: 'Rejected', category: 'Hotel', owner_id: 'o3', email: 'gabs@hotel.bw', created_at: new Date().toISOString(), package_id: 'basic', location_name: 'Gaborone', admin_comments: 'Incomplete documents.', media: [] }
-      ];
-
-      setBusinesses(mockBiz);
-      setUpgradeRequests([
-        { 
-           id: 'ug1', 
-           business_id: 'b1', 
-           current_package: 'professional', 
-           requested_package: 'enterprise', 
-           status: 'pending', 
-           created_at: new Date().toISOString(), 
-           payment_verified: true,
-           payment_proof_url: 'https://picsum.photos/seed/payment1/1200/800'
-        }
-      ]);
-      setAuditLogs([
-        { id: '1', action: 'Approved Business', details: 'Delta Cruises approved by Admin', timestamp: new Date().toISOString(), admin_id: 'a1', user_id: 'o1' },
-      ]);
-      setBookings([
-        { id: '1', business_id: 'b1', customer_id: 'u1', customer_name: 'K. Moremi', booking_date: '2026-05-15', duration: '2 Days', amount: 4500, status: 'confirmed', created_at: new Date().toISOString(), business_name: 'Delta Cruises', listing_title: 'Sunset Cruise' }
-      ]);
-      setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
     try {
       setLoading(true);
       const [bizRes, bookingsRes, upgradeRes, logsRes, notifRes] = await Promise.all([
         supabase.from('businesses').select('*').order('created_at', { ascending: false }),
         supabase.from('bookings').select('*'),
-        supabase.from('package_upgrade_requests').select('*'),
+        supabase.from('package_upgrade_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50),
         supabase.from('admin_notifications').select('*').order('created_at', { ascending: false })
       ]);
@@ -441,51 +412,100 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                    </div>
                  ) : (
                    pendingBusinesses.map(biz => (
-                     <div key={biz.id} className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col lg:flex-row gap-10 hover:shadow-2xl transition-all">
-                       <div className="w-16 h-16 bg-slate-900 rounded-[1.5rem] flex items-center justify-center text-white shrink-0 shadow-lg">
-                          {biz.business_name.charAt(0)}
-                       </div>
-                       <div className="flex-1">
-                          <div className="flex flex-wrap justify-between items-start mb-6">
-                             <div>
-                                <h4 className="text-2xl font-black text-slate-900 mb-1">{biz.business_name}</h4>
-                                <div className="flex items-center gap-3">
-                                   <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">{biz.category}</span>
-                                   <span className="text-slate-300">•</span>
-                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                                      <MapPin className="w-3 h-3" /> {biz.location_name}
-                                   </span>
-                                </div>
-                             </div>
-                             <div className="text-right">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Owner Contact</p>
-                                <p className="text-sm font-bold text-slate-900">{biz.email}</p>
-                             </div>
-                          </div>
+                     <div key={biz.id} className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col gap-10 hover:shadow-2xl transition-all">
+                       <div className="flex flex-col lg:flex-row gap-10">
+                        <div className="w-24 h-24 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white shrink-0 shadow-lg text-2xl font-black">
+                           {biz.business_name.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                           <div className="flex flex-wrap justify-between items-start mb-6">
+                              <div>
+                                 <h4 className="text-3xl font-black text-slate-900 mb-1">{biz.business_name}</h4>
+                                 <div className="flex flex-wrap items-center gap-3">
+                                    <span className="text-xs font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-lg">{biz.category}</span>
+                                    <span className="text-slate-300 px-1">|</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                                       <Package className="w-3 h-3" /> {biz.package_id} Plan
+                                    </span>
+                                    <span className="text-slate-300 px-1">•</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Submitted {format(new Date(biz.created_at || Date.now()), 'MMM d, yyyy')}</span>
+                                 </div>
+                              </div>
+                              <div className="text-right">
+                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Owner: {biz.owner_name}</p>
+                                 <p className="text-sm font-bold text-slate-900">{biz.email}</p>
+                              </div>
+                           </div>
 
-                          <div className="flex gap-4 mt-8 pt-8 border-t border-slate-50">
-                             <a 
-                               href={biz.payment_proof} 
-                               target="_blank" 
-                               className="px-6 py-3 bg-slate-50 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-100"
-                             >
-                               <FileText className="w-4 h-4" /> View Documents
-                             </a>
-                             <div className="ml-auto flex gap-3">
-                               <button 
-                                 onClick={() => handleStatusUpdate(biz.id, 'Rejected')}
-                                 className="px-10 py-3 bg-rose-50 text-rose-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100"
-                               >
-                                 Reject Application
-                               </button>
-                               <button 
-                                 onClick={() => handleStatusUpdate(biz.id, 'Approved')}
-                                 className="px-12 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
-                               >
-                                  <CheckCircle2 className="w-4 h-4" /> Approve Application
-                               </button>
+                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                             <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">District</p>
+                               <p className="text-sm font-bold text-slate-900">{biz.district_name || 'N/A'}</p>
                              </div>
-                          </div>
+                             <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Settlement/Town</p>
+                               <p className="text-sm font-bold text-slate-900">{biz.settlement_name || 'N/A'}</p>
+                             </div>
+                             <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Area/Ward/Kgotla</p>
+                               <p className="text-sm font-bold text-slate-900">{biz.area_name || biz.region_name || 'N/A'}</p>
+                             </div>
+                             <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local Address</p>
+                               <p className="text-sm font-bold text-slate-900 truncate">{biz.manual_address || biz.location_name || 'Botswana'}</p>
+                             </div>
+                           </div>
+
+                           <div className="mb-8">
+                             <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Business Bio</p>
+                             <p className="text-sm text-slate-600 font-medium leading-relaxed italic border-l-4 border-slate-200 pl-4">
+                               "{biz.bio || biz.mini_bio || 'No bio provided.'}"
+                             </p>
+                           </div>
+
+                           <div className="flex flex-wrap gap-4 mt-8 pt-8 border-t border-slate-50">
+                              <div className="flex gap-3">
+                                {biz.payment_proof && (
+                                  <a 
+                                    href={biz.payment_proof} 
+                                    target="_blank" 
+                                    className="px-6 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 shadow-sm"
+                                  >
+                                    <FileText className="w-4 h-4" /> Payment Proof
+                                  </a>
+                                )}
+                                {biz.documents && biz.documents.map((doc, idx) => (
+                                  <a 
+                                    key={idx}
+                                    href={doc} 
+                                    target="_blank" 
+                                    className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-200"
+                                  >
+                                    <Shield className="w-4 h-4" /> BTO License ({idx + 1})
+                                  </a>
+                                ))}
+                                {biz.media && Array.isArray(biz.media) && biz.media.length > 0 && (
+                                   <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest ml-4">
+                                      <TrendingUp className="w-4 h-4" /> {biz.media.length} Media Attachments
+                                   </div>
+                                )}
+                              </div>
+                              <div className="ml-auto flex gap-3">
+                                <button 
+                                  onClick={() => handleStatusUpdate(biz.id, 'Rejected')}
+                                  className="px-10 py-3 bg-rose-50 text-rose-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100"
+                                >
+                                  Reject
+                                </button>
+                                <button 
+                                  onClick={() => handleStatusUpdate(biz.id, 'Approved')}
+                                  className="px-12 py-4 bg-emerald-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
+                                >
+                                   <CheckCircle2 className="w-4 h-4" /> Approve & List
+                                </button>
+                              </div>
+                           </div>
+                        </div>
                        </div>
                      </div>
                    ))
