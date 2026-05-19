@@ -193,6 +193,11 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
         profile ? supabase.from('bookings').select('*').eq('customer_id', profile.id) : Promise.resolve({ data: [], error: null })
       ]);
 
+      if (bizRes.error) console.error('Fetch businesses error:', bizRes.error);
+      if (reviewsRes.error) console.error('Fetch reviews error:', reviewsRes.error);
+      if (promosRes.error) console.error('Fetch promotions error:', promosRes.error);
+      if (bookingsRes.error) console.error('Fetch bookings error:', bookingsRes.error);
+
       setBusinesses(bizRes.data || []);
       setAllReviews(reviewsRes.data || []);
       setPromotions(promosRes.data || []);

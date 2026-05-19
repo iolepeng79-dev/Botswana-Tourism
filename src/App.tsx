@@ -30,7 +30,12 @@ export default function App() {
     }
 
     // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Supabase connection/session error:', error);
+      } else {
+        console.log('Supabase session check successful.');
+      }
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
