@@ -280,21 +280,20 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
       }
 
       const [bizRes, allBizRes] = await Promise.all([
-        supabase.from('businesses').select('*').eq('owner_id', user.id).single(),
+        supabase.from('businesses').select('*').eq('owner_id', user.id).maybeSingle(),
         supabase.from('businesses').select('*').eq('status', 'Approved')
       ]);
 
       if (bizRes.error) {
         console.error('Error fetching business:', bizRes.error);
-        setLoading(false);
-        return;
+        // Don't set loading false immediately if it's just a query error
       }
 
       const biz = bizRes.data;
       setBusiness(biz);
       setAllBusinesses(allBizRes.data || []);
 
-      if (biz.status === 'Approved') {
+      if (biz && biz.status === 'Approved') {
         const [
           bookingsRes,
           reviewsRes,

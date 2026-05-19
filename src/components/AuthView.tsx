@@ -35,32 +35,25 @@ export default function AuthView({ onLogin, onCancel }: AuthViewProps) {
 
       if (authError) throw authError;
 
-      // Verify business status if role is Business
-      if (loginRole === 'Business') {
-        const { data: bizData, error: bizError } = await supabase
-          .from('businesses')
-          .select('status')
-          .eq('owner_id', data.user.id)
-          .single();
-        
-        if (bizError) {
-          // If no business record found for this user, they might not be fully onboarded
-          setError("Business account details not found. Please register as a business.");
-          setLoading(false);
-          await supabase.auth.signOut();
-          return;
-        }
+      console.log('Login successful for user:', data.user.id);
 
-        if (bizData.status !== 'Approved') {
-           setError(`Your business is currently ${bizData.status.toLowerCase()}. Please check back later.`);
-           setLoading(false);
-           await supabase.auth.signOut();
-           return;
-        }
+      // Successfully signed in - fetch profile to confirm role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error fetching profile after login:', profileError);
       }
 
-      // Successful login will be detected by App.tsx through auth state change
-      onLogin(loginRole);
+      // If we have a profile, use its role, otherwise fallback to the role they selected in the dropdown
+      const actualRole = profile?.role || loginRole;
+      console.log('Actual user role:', actualRole);
+
+      // Trigger the login callback
+      onLogin(actualRole as UserRole);
     } catch (err: any) {
       console.error("Login verification error:", err);
       setError(err.message || "Invalid login credentials");
