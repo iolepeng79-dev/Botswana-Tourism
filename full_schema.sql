@@ -219,7 +219,10 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage Policies (Allow public read, authenticated upload)
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id IN ('verification-docs', 'business-gallery', 'profile-pictures', 'promotions', 'listings'));
+
+DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
 CREATE POLICY "Authenticated Upload" ON storage.objects FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- 5. INITIAL DATA
@@ -359,6 +362,35 @@ BEGIN
   END IF;
 END $$;
 
+-- Admin Notification Trigger for Package Upgrades
+CREATE OR REPLACE FUNCTION public.notify_admin_package_upgrade()
+RETURNS trigger AS $$
+BEGIN
+    INSERT INTO public.admin_notifications (
+        type,
+        title,
+        message
+    )
+    VALUES (
+        'package_upgrade',
+        'New Package Upgrade Request',
+        'Business "' || NEW.business_name || '" requested an upgrade from ' || NEW.current_package || ' to ' || NEW.requested_package || '.'
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_notify_admin_package_upgrade') THEN
+    CREATE TRIGGER trg_notify_admin_package_upgrade
+      AFTER INSERT ON public.package_upgrade_requests
+      FOR EACH ROW
+      WHEN (NEW.status = 'pending')
+      EXECUTE FUNCTION public.notify_admin_package_upgrade();
+  END IF;
+END $$;
+
 -- Profiles update on Auth User change
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -379,22 +411,106 @@ BEGIN
 END $$;
 
 -- RLS Refinement
+-- Enable RLS on all tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.listings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.package_upgrade_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public can view approved businesses" 
-ON public.businesses FOR SELECT 
-USING (status = 'Approved');
+-- 1. Profiles
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update their own profiles" ON public.profiles;
+CREATE POLICY "Users can update their own profiles" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Owners can manage own business" 
-ON public.businesses FOR ALL 
-USING (auth.uid() = owner_id);
+-- 2. Locations
+DROP POLICY IF EXISTS "Locations are viewable by everyone" ON public.locations;
+CREATE POLICY "Locations are viewable by everyone" ON public.locations FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins can manage locations" ON public.locations;
+CREATE POLICY "Admins can manage locations" ON public.locations FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
 
-CREATE POLICY "Admins manage all businesses"
-ON public.businesses FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE profiles.id = auth.uid() 
-    AND profiles.role = 'Admin'
-  )
-);
+-- 3. Packages
+DROP POLICY IF EXISTS "Packages are viewable by everyone" ON public.packages;
+CREATE POLICY "Packages are viewable by everyone" ON public.packages FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins can manage packages" ON public.packages;
+CREATE POLICY "Admins can manage packages" ON public.packages FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+
+-- 4. Businesses
+DROP POLICY IF EXISTS "Public can view approved businesses" ON public.businesses;
+CREATE POLICY "Public can view approved businesses" ON public.businesses FOR SELECT USING (status = 'Approved');
+DROP POLICY IF EXISTS "Owners can manage own business" ON public.businesses;
+CREATE POLICY "Owners can manage own business" ON public.businesses FOR ALL USING (auth.uid() = owner_id);
+DROP POLICY IF EXISTS "Admins manage all businesses" ON public.businesses;
+CREATE POLICY "Admins manage all businesses" ON public.businesses FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+
+-- 5. Listings
+DROP POLICY IF EXISTS "Listings are viewable by everyone" ON public.listings;
+CREATE POLICY "Listings are viewable by everyone" ON public.listings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Business owners can manage their listings" ON public.listings;
+CREATE POLICY "Business owners can manage their listings" ON public.listings FOR ALL USING (EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+
+-- 6. Bookings
+DROP POLICY IF EXISTS "Users can view their own bookings" ON public.bookings;
+CREATE POLICY "Users can view their own bookings" ON public.bookings FOR SELECT USING (auth.uid() = customer_id OR EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+DROP POLICY IF EXISTS "Tourists can create bookings" ON public.bookings;
+CREATE POLICY "Tourists can create bookings" ON public.bookings FOR INSERT WITH CHECK (auth.uid() = customer_id);
+DROP POLICY IF EXISTS "Owners and customers can update bookings" ON public.bookings;
+CREATE POLICY "Owners and customers can update bookings" ON public.bookings FOR UPDATE USING (auth.uid() = customer_id OR EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+
+-- 7. Reviews
+DROP POLICY IF EXISTS "Reviews are viewable by everyone" ON public.reviews;
+CREATE POLICY "Reviews are viewable by everyone" ON public.reviews FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can create reviews" ON public.reviews;
+CREATE POLICY "Authenticated users can create reviews" ON public.reviews FOR INSERT WITH CHECK (auth.uid() = customer_id);
+
+-- 8. Promotions
+DROP POLICY IF EXISTS "Active promotions are viewable by everyone" ON public.promotions;
+CREATE POLICY "Active promotions are viewable by everyone" ON public.promotions FOR SELECT USING (active = true);
+DROP POLICY IF EXISTS "Owners can manage promotions" ON public.promotions;
+CREATE POLICY "Owners can manage promotions" ON public.promotions FOR ALL USING (EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+
+-- 9. Messages
+DROP POLICY IF EXISTS "Users can view their own messages" ON public.messages;
+CREATE POLICY "Users can view their own messages" ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+DROP POLICY IF EXISTS "Users can send messages" ON public.messages;
+CREATE POLICY "Users can send messages" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- 10. Admin Notifications
+DROP POLICY IF EXISTS "Only admins can view notifications" ON public.admin_notifications;
+CREATE POLICY "Only admins can view notifications" ON public.admin_notifications FOR SELECT USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+DROP POLICY IF EXISTS "Only admins can update notifications" ON public.admin_notifications;
+CREATE POLICY "Only admins can update notifications" ON public.admin_notifications FOR UPDATE USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+
+-- 11. Package Upgrade Requests
+DROP POLICY IF EXISTS "Owners can view their own upgrade requests" ON public.package_upgrade_requests;
+CREATE POLICY "Owners can view their own upgrade requests" ON public.package_upgrade_requests FOR SELECT USING (EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+DROP POLICY IF EXISTS "Owners can create upgrade requests" ON public.package_upgrade_requests;
+CREATE POLICY "Owners can create upgrade requests" ON public.package_upgrade_requests FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+DROP POLICY IF EXISTS "Admins manage upgrade requests" ON public.package_upgrade_requests;
+CREATE POLICY "Admins manage upgrade requests" ON public.package_upgrade_requests FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+
+-- 12. Audit Logs
+DROP POLICY IF EXISTS "Only admins can view audit logs" ON public.audit_logs;
+CREATE POLICY "Only admins can view audit logs" ON public.audit_logs FOR SELECT USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+
+-- 13. Analytics
+DROP POLICY IF EXISTS "Owners can view their business analytics" ON public.analytics;
+CREATE POLICY "Owners can view their business analytics" ON public.analytics FOR SELECT USING (EXISTS (SELECT 1 FROM public.businesses WHERE businesses.id = business_id AND businesses.owner_id = auth.uid()));
+DROP POLICY IF EXISTS "Admins can view all analytics" ON public.analytics;
+CREATE POLICY "Admins can view all analytics" ON public.analytics FOR SELECT USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));
+
+-- 14. Payment Methods
+DROP POLICY IF EXISTS "Payment methods are viewable by everyone" ON public.payment_methods;
+CREATE POLICY "Payment methods are viewable by everyone" ON public.payment_methods FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins manage payment methods" ON public.payment_methods;
+CREATE POLICY "Admins manage payment methods" ON public.payment_methods FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'Admin'));

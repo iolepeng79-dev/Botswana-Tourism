@@ -257,6 +257,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   }
 
   const pendingBusinesses = businesses.filter(b => b.status === 'Pending');
+  const pendingUpgrades = upgradeRequests.filter(r => r.status === 'pending');
   const stats = useMemo(() => {
     const totalRev = bookings.reduce((acc, b) => acc + (b.status === 'confirmed' || b.status === 'completed' ? b.amount : 0), 0);
     return {
@@ -321,7 +322,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
           {[
             { id: 'overview', label: 'Summary', icon: Activity },
             { id: 'verification', label: 'Verify', icon: UserCheck, count: stats.pending },
-            { id: 'upgrades', label: 'Upgrades', icon: Zap, count: upgradeRequests.length },
+            { id: 'upgrades', label: 'Upgrades', icon: Zap, count: pendingUpgrades.length },
             { id: 'notifications', label: 'Inbox', icon: Bell, count: notifications.filter(n => !n.read).length },
             { id: 'analytics', label: 'Insights', icon: BarChart3 },
             { id: 'messages', label: 'Chat', icon: MessageSquare },
@@ -495,10 +496,20 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
           {activeTab === 'upgrades' && (
             <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4">
-               <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-8">Package Upgrade Center</h2>
+               <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-4xl font-black text-slate-900 tracking-tight">Package Upgrade Center</h2>
+                  <p className="text-sm font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-6 py-2 rounded-full">{pendingUpgrades.length} Requests Waiting</p>
+               </div>
                <div className="grid grid-cols-1 gap-6">
-                  {upgradeRequests.map(req => (
-                    <div key={req.id} className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-10">
+                  {pendingUpgrades.length === 0 ? (
+                    <div className="text-center py-24 bg-white rounded-[4rem] border-2 border-dashed border-slate-100">
+                       <Zap className="w-20 h-20 text-indigo-100 mx-auto mb-6" />
+                       <h3 className="text-2xl font-black text-slate-800">Clear Skies!</h3>
+                       <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No pending upgrade requests.</p>
+                    </div>
+                  ) : (
+                    pendingUpgrades.map(req => (
+                      <div key={req.id} className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-10 hover:shadow-2xl transition-all">
                        <div className="flex items-center gap-8">
                           <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center shadow-inner">
                              <Zap className="w-7 h-7" />
@@ -545,7 +556,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                            </button>
                        </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                </div>
             </div>
           )}
@@ -602,6 +614,14 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                             className="px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all"
                           >
                             Review Now
+                          </button>
+                        )}
+                        {n.type === 'package_upgrade' && (
+                          <button 
+                            onClick={() => setActiveTab('upgrades')}
+                            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all"
+                          >
+                            Examine Request
                           </button>
                         )}
                       </div>
