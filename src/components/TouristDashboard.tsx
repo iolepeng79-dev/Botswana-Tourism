@@ -265,8 +265,24 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
   const categorizedData = useMemo(() => {
     const groups: Record<BusinessCategory, { business: Business; reviews: Review[] }[]> = {} as any;
     
+    // Filter businesses by search query first
+    const searchFilteredBusinesses = businesses.filter(b => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        b.business_name.toLowerCase().includes(query) ||
+        b.category.toLowerCase().includes(query) ||
+        (b.location_name?.toLowerCase().includes(query)) ||
+        (b.district?.toLowerCase().includes(query)) ||
+        (b.settlement?.toLowerCase().includes(query)) ||
+        (b.region?.toLowerCase().includes(query)) ||
+        (b.manual_address?.toLowerCase().includes(query)) ||
+        (b.package_id?.toLowerCase().includes(query))
+      );
+    });
+
     BUSINESS_CATEGORIES.forEach(cat => {
-      const filtered = businesses.filter(b => b.category === cat);
+      const filtered = searchFilteredBusinesses.filter(b => b.category === cat);
       const withReviews = filtered.map(b => ({
         business: b,
         reviews: allReviews.filter(r => r.business_id === b.id)
@@ -277,11 +293,11 @@ export default function TouristDashboard({ profile, onAuthRequired }: TouristDas
         const ratingA = a.reviews.length ? a.reviews.reduce((acc, r) => acc + r.rating, 0) / a.reviews.length : 0;
         const ratingB = b.reviews.length ? b.reviews.reduce((acc, r) => acc + r.rating, 0) / b.reviews.length : 0;
         return ratingB - ratingA;
-      }).slice(0, 10); // Minimum 10 pick
+      }).slice(0, 50); // Increased limit as per user request for discoverability
     });
 
     return groups;
-  }, [businesses, allReviews]);
+  }, [businesses, allReviews, searchQuery]);
 
   const selectedBusiness = businesses.find(b => b.id === selectedBusinessId);
   const selectedBusinessReviews = allReviews.filter(r => r.business_id === selectedBusinessId);

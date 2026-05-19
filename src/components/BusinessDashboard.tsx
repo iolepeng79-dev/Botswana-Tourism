@@ -1322,6 +1322,14 @@ export default function BusinessDashboard({ profile }: BusinessDashboardProps) {
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 px-2">Mini Bio (Card Summary)</label>
+                    <input 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="Short 1-sentence summary..."
+                      defaultValue={business.mini_bio}
+                    />
+                  </div>
+                  <div>
                     <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 px-2">Promotions and Announcements</label>
                     <textarea 
                       className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none h-24"

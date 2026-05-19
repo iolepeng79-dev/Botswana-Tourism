@@ -16,6 +16,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Video,
+  Navigation,
   Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -238,15 +239,38 @@ export default function BusinessProfileView({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Operating in</p>
-                      <p className="text-sm font-bold text-slate-900">{business.location_name}, {business.area_name}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Operating in Botswana</p>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-900">
+                          {business.district && <span className="text-slate-500 mr-1">{business.district} District,</span>}
+                          {business.settlement && <span className="text-slate-500 mr-1">{business.settlement},</span>}
+                          {business.region && <span className="text-slate-500 mr-1">{business.region},</span>}
+                          <span className="text-indigo-600">{business.location_name || 'Botswana'}</span>
+                        </p>
+                        {business.manual_address && (
+                          <p className="text-xs font-medium text-slate-400 italic mt-1 flex items-center gap-2">
+                            <MapPin className="w-3 h-3" /> {business.manual_address}
+                          </p>
+                        )}
+                        {business.latitude && business.longitude && (
+                           <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                              <Navigation className="w-3 h-3" /> GPS: {business.latitude}, {business.longitude}
+                           </p>
+                        )}
+                      </div>
                    </div>
-                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Status</p>
+                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 md:col-span-1">
+                      <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Business Verified</p>
                       <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-bold">
                         <ShieldCheck className="w-4 h-4" /> BTO Approved
+                      </div>
+                   </div>
+                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 md:col-span-1">
+                      <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Package Tier</p>
+                      <div className="flex items-center gap-1.5 text-indigo-600 text-sm font-bold capitalize">
+                        <Package className="w-4 h-4" /> {business.package_id}
                       </div>
                    </div>
                 </div>

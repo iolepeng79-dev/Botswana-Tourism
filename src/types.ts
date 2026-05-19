@@ -27,8 +27,11 @@ export interface Business {
   location_id?: string;
   location_name?: string;
   area_name?: string;
+  district?: string;
   district_name?: string;
+  settlement?: string;
   settlement_name?: string;
+  region?: string;
   region_name?: string;
   verified_location?: boolean;
   manual_address?: string;
