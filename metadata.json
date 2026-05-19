@@ -1,6 +1,8 @@
 {
-  "name": "TourBots Botswana Business Dashboard",
-  "description": "A comprehensive, modern business dashboard for TourBots Botswana partners to manage bookings, analytics, promotions, and profile settings.",
+  "name": "TourBots Botswana Platform",
+  "description": "Unified Botswana tourism ecosystem with Business onboarding, Admin approval, and Tourist discovery.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
